@@ -1,17 +1,17 @@
 [client]
 toolbarMode = "viewer"
+showErrorDetails = false
 
-showErrorDetails = true
-
-[theme]
-# Optional: Customize the theme
-# primaryColor = "#FF6B6B"
-# backgroundColor = "#FFFFFF"
-# secondaryBackgroundColor = "#F0F2F6"
-# textColor = "#262730"
-# font = "sans serif"  # Options: "sans serif", "serif", "monospace"
+[server]
+headless = true
 
 [runner]
 magicEnabled = true
-
 fastReruns = true
+
+[browser]
+gatherUsageStats = false
+
+[ui]
+hideTopBar = true
+hideSidebarNav = false
