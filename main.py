@@ -135,6 +135,52 @@ with summary_tab:
         else:
             st.header("📊 Summary Comparison Analysis")
             st.success(f"✅ Comparing {input_file_type} files: {st.session_state.input_file.name} vs {st.session_state.modified_file.name}")
+            if st.session_state.input_defaults_df is not None and st.session_state.modified_defaults_df is not None:
+                st.subheader("📋 Changes in Defaults & Assumptions")
+              
+                input_defaults = st.session_state.input_defaults_df.set_index('Parameter')
+                modified_defaults = st.session_state.modified_defaults_df.set_index('Parameter')
+                common_params = input_defaults.index.intersection(modified_defaults.index)
+                
+                changes = []
+                for param in common_params:
+                    original_value = input_defaults.loc[param, 'Value']
+                    modified_value = modified_defaults.loc[param, 'Value']
+                    try:
+                        if pd.isna(original_value) and pd.isna(modified_value):
+                            continue
+                        elif pd.isna(original_value) or pd.isna(modified_value):
+                            difference = "N/A"
+                        elif abs(float(original_value) - float(modified_value)) > 1e-10:
+                            difference = float(modified_value) - float(original_value)
+                        else:
+                            continue 
+                    except (ValueError, TypeError):
+                        if str(original_value) != str(modified_value):
+                            difference = "Text Changed"
+                        else:
+                            continue
+                    
+                    changes.append({
+                        'Parameter': param,
+                        'Original Value': original_value,
+                        'Modified Value': modified_value,
+                        'Change Description': f"{original_value} → {modified_value}"
+                    })
+                
+                if changes:
+                    changes_df = pd.DataFrame(changes)
+                    st.dataframe(
+                        changes_df,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                else:
+                    st.info("✅ No changes detected in defaults and assumptions.")
+                
+                st.divider()
+            
+            st.subheader("📊 Summary Data Comparison")
             st.write("Below is the difference between your modified file and original file (Modified - Original):")
           
             try:
@@ -149,37 +195,8 @@ with summary_tab:
                     use_container_width=True,
                     height=600
                 )
+                
             except Exception as e:
                 st.error(f"❌ Error calculating differences: {str(e)}")
                 st.info("💡 Make sure both files have the same structure and data types.")
     
-    else:
-        st.header("🚀 Getting Started")
-        
-        st.info("""
-        To view the summary comparison:
-        
-        1. **Upload Original File** - Go to the "Original File" tab and upload your base BCA file
-        2. **Upload Modified File** - Go to the "Modified File" tab and upload your modified BCA file  
-        3. **View Comparison** - Return here to see the detailed comparison analysis
-        
-        Both files must be processed successfully before comparison can be performed.
-        """)
-        
-        original_status = "✅ Uploaded" if st.session_state.input_summary_df is not None else "❌ Not uploaded"
-        modified_status = "✅ Uploaded" if st.session_state.modified_summary_df is not None else "❌ Not uploaded"
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.info(f"**Original File Status:** {original_status}")
-        with col2:
-            st.info(f"**Modified File Status:** {modified_status}")
-        
-        if st.session_state.input_file is not None or st.session_state.modified_file is not None:
-            st.write("**File Types:**")
-            if st.session_state.input_file is not None:
-                input_type = "AMZ" if st.session_state.input_file.name.upper().startswith('AMZ') else "PA"
-                st.write(f"- Original: {input_type}")
-            if st.session_state.modified_file is not None:
-                modified_type = "AMZ" if st.session_state.modified_file.name.upper().startswith('AMZ') else "PA"
-                st.write(f"- Modified: {modified_type}")
