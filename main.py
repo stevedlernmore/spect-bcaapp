@@ -61,7 +61,7 @@ with input_tab:
                 st.error(f"❌ An error occurred: {str(e)}")
 
         if st.session_state.input_defaults_df is not None:
-            with st.expander("📋 View Assumptions & Parameters", expanded=False):
+            with st.expander("📋 View Defaults & Assumptions", expanded=False):
                 st.dataframe(
                     st.session_state.input_defaults_df,
                     use_container_width=True,
@@ -102,7 +102,7 @@ with modified_tab:
                 st.error(f"❌ An error occurred: {str(e)}")
 
         if st.session_state.modified_defaults_df is not None:
-            with st.expander("📋 View Modified Assumptions & Parameters", expanded=False):
+            with st.expander("📋 View Modified Defaults & Assumptions", expanded=False):
                 st.dataframe(
                     st.session_state.modified_defaults_df,
                     use_container_width=True,
@@ -119,7 +119,6 @@ with modified_tab:
 
 with summary_tab:
     if st.session_state.input_summary_df is not None and st.session_state.modified_summary_df is not None:
-        # Check if both files are the same type
         input_file_type = "AMZ" if st.session_state.input_file.name.upper().startswith('AMZ') else "PA"
         modified_file_type = "AMZ" if st.session_state.modified_file.name.upper().startswith('AMZ') else "PA"
         
@@ -134,7 +133,6 @@ with summary_tab:
             Please upload files of the same type to perform comparison.
             """)
         else:
-            # Files are the same type, proceed with comparison
             st.header("📊 Summary Comparison Analysis")
             st.success(f"✅ Comparing {input_file_type} files: {st.session_state.input_file.name} vs {st.session_state.modified_file.name}")
             st.write("Below is the difference between your modified file and original file (Modified - Original):")
