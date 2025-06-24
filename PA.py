@@ -335,25 +335,23 @@ def getSummary(file):
   print('Calculating Contribution Margin...')
   getContributionMargin()
 
-  assumptions_data = {
-    'Parameter': [
-      'Freight Interco Per Unit',
-      'Special Marketing Per Unit',
-      'Special Marketing Cumulative',
-      'Scrap Return Rate',
-      'Fill Rate Fines',
-      'FACTORING %'
-    ],
-    'Value': [
-      FREIGHT_INTERCO_PER_UNIT,
-      SPECIAL_MARKETING_PER_UNIT,
-      SPECIAL_MARKETING_CUMULATIVE,
-      SCRAP_RETURN_RATE,
-      FILL_RATE_FINES,
-      FACTORING_PERCENT
-    ]
-  }
+  defaults_list = []
+  for column in DEFAULTS.columns:
+    for index in DEFAULTS.index:
+      parameter_name = f"{column}"
+      value = DEFAULTS.loc[index, column]
+      defaults_list.append({'Parameter': parameter_name, 'Value': value})
   
-  assumptions_df = pd.DataFrame(assumptions_data)
+  additional_params = [
+    {'Parameter': 'Freight Interco Per Unit', 'Value': FREIGHT_INTERCO_PER_UNIT},
+    {'Parameter': 'Special Marketing Per Unit', 'Value': SPECIAL_MARKETING_PER_UNIT},
+    {'Parameter': 'Special Marketing Cumulative', 'Value': SPECIAL_MARKETING_CUMULATIVE}
+  ]
+  
+  combined_assumptions = defaults_list + additional_params
+  
+  assumptions_df = pd.DataFrame(combined_assumptions)
+  
+  assumptions_df = assumptions_df.dropna()
 
   return output, assumptions_df

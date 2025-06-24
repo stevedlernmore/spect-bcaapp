@@ -119,35 +119,44 @@ with modified_tab:
 
 with summary_tab:
     if st.session_state.input_summary_df is not None and st.session_state.modified_summary_df is not None:
-        st.header("Summary Comparison Analysis")
-        st.write("Below is the difference between your modified file and original file (Modified - Original):")
-      
-        try:
-            numeric_result = st.session_state.modified_summary_df.iloc[1:, 1:] - st.session_state.input_summary_df.iloc[1:, 1:]
-            result = pd.DataFrame(
-                numeric_result.values,
-                index=st.session_state.input_summary_df.iloc[1:, 0],
-                columns=st.session_state.input_summary_df.columns[1:]
-            )
-            st.dataframe(
-                result,
-                use_container_width=True,
-                height=600
-            )
-            csv = result.to_csv()
-            st.download_button(
-                label="📥 Download Comparison as CSV",
-                data=csv,
-                file_name="bca_comparison.csv",
-                mime="text/csv"
-            )
+        # Check if both files are the same type
+        input_file_type = "AMZ" if st.session_state.input_file.name.upper().startswith('AMZ') else "PA"
+        modified_file_type = "AMZ" if st.session_state.modified_file.name.upper().startswith('AMZ') else "PA"
+        
+        if input_file_type != modified_file_type:
+            st.error(f"❌ File Type Mismatch!")
+            st.warning(f"""
+            **Cannot compare files of different types:**
             
-        except Exception as e:
-            st.error(f"❌ Error calculating differences: {str(e)}")
-            st.info("💡 Make sure both files have the same structure and data types.")
+            - **Original File:** {input_file_type} ({st.session_state.input_file.name})
+            - **Modified File:** {modified_file_type} ({st.session_state.modified_file.name})
+            
+            Please upload files of the same type to perform comparison.
+            """)
+        else:
+            # Files are the same type, proceed with comparison
+            st.header("📊 Summary Comparison Analysis")
+            st.success(f"✅ Comparing {input_file_type} files: {st.session_state.input_file.name} vs {st.session_state.modified_file.name}")
+            st.write("Below is the difference between your modified file and original file (Modified - Original):")
+          
+            try:
+                numeric_result = st.session_state.modified_summary_df.iloc[1:, 1:] - st.session_state.input_summary_df.iloc[1:, 1:]
+                result = pd.DataFrame(
+                    numeric_result.values,
+                    index=st.session_state.input_summary_df.iloc[1:, 0],
+                    columns=st.session_state.input_summary_df.columns[1:]
+                )
+                st.dataframe(
+                    result,
+                    use_container_width=True,
+                    height=600
+                )
+            except Exception as e:
+                st.error(f"❌ Error calculating differences: {str(e)}")
+                st.info("💡 Make sure both files have the same structure and data types.")
     
     else:
-        st.header("Getting Started")
+        st.header("🚀 Getting Started")
         
         st.info("""
         To view the summary comparison:
@@ -167,3 +176,12 @@ with summary_tab:
             st.info(f"**Original File Status:** {original_status}")
         with col2:
             st.info(f"**Modified File Status:** {modified_status}")
+        
+        if st.session_state.input_file is not None or st.session_state.modified_file is not None:
+            st.write("**File Types:**")
+            if st.session_state.input_file is not None:
+                input_type = "AMZ" if st.session_state.input_file.name.upper().startswith('AMZ') else "PA"
+                st.write(f"- Original: {input_type}")
+            if st.session_state.modified_file is not None:
+                modified_type = "AMZ" if st.session_state.modified_file.name.upper().startswith('AMZ') else "PA"
+                st.write(f"- Modified: {modified_type}")
