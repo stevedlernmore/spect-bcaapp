@@ -57,12 +57,6 @@ def to_excel_bytes(summary_df, defaults_df=None):
   output.seek(0)
   return output.getvalue()
 
-st.set_page_config(
-    page_title="Rapid BCA Analyzer",
-    page_icon="logo-spectra-premium.jpg", 
-    layout="wide"
-)
-
 st.markdown("""
 <style>
     /* Hide main menu */
@@ -462,6 +456,12 @@ st.markdown("""
 
 </style>
 """, unsafe_allow_html=True)
+
+st.set_page_config(
+    page_title="Rapid BCA Analyzer",
+    page_icon="logo-spectra-premium.jpg", 
+    layout="wide"
+)
 
 def check_password():
   def password_entered():
