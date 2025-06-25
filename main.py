@@ -447,12 +447,9 @@ st.markdown("""
         border-right: none !important;
     }
             
-    [data-testid="stDecoration"] {
-        display: none !important;
-    }
-    .viewerBadge_container__1QSob {
-        display: none !important;
-    }
+    div[style*="position: fixed"][style*="bottom: 0px"][style*="right: 0px"] {
+    display: none !important;
+}
 
 </style>
 """, unsafe_allow_html=True)
