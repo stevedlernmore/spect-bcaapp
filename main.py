@@ -452,6 +452,13 @@ st.markdown("""
     .stDataFrame td:last-child, .stDataFrame th:last-child {
         border-right: none !important;
     }
+            
+    [data-testid="stDecoration"] {
+        display: none !important;
+    }
+    .viewerBadge_container__1QSob {
+        display: none !important;
+    }
 
 </style>
 """, unsafe_allow_html=True)

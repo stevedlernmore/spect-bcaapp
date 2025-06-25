@@ -25,4 +25,3 @@ gatherUsageStats = false
 
 [ui]
 hideTopBar = true
-hideBottomBar = true
