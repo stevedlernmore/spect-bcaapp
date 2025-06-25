@@ -542,7 +542,7 @@ if check_password():
 
     with input_tab:
       st.header("Upload Original BCA File")
-      st.write("Upload your original Business Case Analysis file. The system will automatically detect whether it's an AMZ or PA file based on the filename.")
+      st.write("Upload your original Business Case Analysis file. The system will automatically detect whether it's an AMZ, PA, or ORL file based on the filename.")
       
       input_file = st.file_uploader(
         "Choose your original Excel file", 
@@ -638,8 +638,19 @@ if check_password():
 
     with summary_tab:
       if st.session_state.input_summary_df is not None and st.session_state.modified_summary_df is not None:
-        input_file_type = "AMZ" if st.session_state.input_file.name.upper().startswith('AMZ') else "PA"
-        modified_file_type = "AMZ" if st.session_state.modified_file.name.upper().startswith('AMZ') else "PA"
+        def get_file_type(filename):
+          filename_upper = filename.upper()
+          if filename_upper.startswith('AMZ'):
+            return "AMZ"
+          elif filename_upper.startswith('PA'):
+            return "PA"
+          elif filename_upper.startswith('ORL'):
+            return "ORL"
+          else:
+            return "UNKNOWN"
+        
+        input_file_type = get_file_type(st.session_state.input_file.name)
+        modified_file_type = get_file_type(st.session_state.modified_file.name)
         
         if input_file_type != modified_file_type:
           st.error(f"❌ File Type Mismatch!")
