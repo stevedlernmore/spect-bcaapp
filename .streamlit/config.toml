@@ -13,6 +13,8 @@ showErrorDetails = false
 
 [server]
 headless = true
+fileWatcherType = "auto"
+runOnSave = true  
 
 [runner]
 magicEnabled = true
@@ -23,3 +25,4 @@ gatherUsageStats = false
 
 [ui]
 hideTopBar = true
+hideBottomBar = true
