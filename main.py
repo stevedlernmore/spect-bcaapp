@@ -473,6 +473,7 @@ def check_password():
       if "authenticated" not in st.session_state or st.session_state["authenticated"] is False:
         container = st.container(border=True)
         with container:
+          st.image("logo-spectra-premium.jpg", width=300)
           st.session_state["username"] = st.text_input("Username", key="username_input")
           st.session_state["password"] = st.text_input("Password", type="password", key="password_input")
           st.button("Login", on_click=password_entered, key="login_button", use_container_width=True)
@@ -508,12 +509,21 @@ if check_password():
 
   header_container = st.container()
   with header_container:
+    col1, col2 = st.columns([3, 1])
+    with col1:
+      st.markdown("""
+      <div class="title-section">
+        <h1 style="margin-bottom: 5px;">Rapid BCA Analyzer</h1>
+        <h3 style="color: #6c757d; font-weight: 400; margin-top: 0;">Instantly Analyze Business Cases</h3>
+      </div>
+      """, unsafe_allow_html=True)
+
+  with col2:
     st.markdown("""
-    <div class="title-section">
-      <h1 style="margin-bottom: 5px;">Rapid BCA Analyzer</h1>
-      <h3 style="color: #6c757d; font-weight: 400; margin-top: 0;">Instantly Analyze Business Cases</h3>
-    </div>
+    <div class="logo-section">
     """, unsafe_allow_html=True)
+    st.image("logo-spectra-premium.jpg", width=300)
+    st.markdown("</div>", unsafe_allow_html=True)
 
   def process_file(uploaded_file):
     filename = uploaded_file.name.upper()
