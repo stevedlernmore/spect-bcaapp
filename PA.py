@@ -1,17 +1,24 @@
 import pandas as pd
 import utility_library as util
 
-def getSummary(file):
+def getSummary(file, user_defaults_df=None):
 
   print('Reading PA DATA sheet...')
   DATA = pd.read_excel(file, sheet_name='Data', header=1, na_values='', keep_default_na=False)
   DATA = DATA.dropna(subset=['Pline'])
   print('Reading Default and Assumptions sheets...')
-  DEFAULTS = pd.read_excel(file, sheet_name='Defaults & Assumptions')
+  if user_defaults_df is not None:
+    DEFAULTS = user_defaults_df.copy().set_index('Parameter').T
+  else:
+    DEFAULTS = pd.read_excel(file, sheet_name='Defaults & Assumptions')
   print('Reading Default and Assumptions sheets...')
   SGA_PER_UNIT = pd.read_excel(file, sheet_name='SG&A Per Unit', index_col=0).T
 
-  # I'll assume that the per unit of freight interco is 0 since not defined in the Default and Assumptions sheet
+  # if user_defaults_df is not None:
+  #   FREIGHT_INTERCO_PER_UNIT = DEFAULTS['Freight Interco Per Unit'][0]
+  #   SPECIAL_MARKETING_PER_UNIT = DEFAULTS['Special Marketing Per Unit'][0]
+  #   SPECIAL_MARKETING_CUMULATIVE = DEFAULTS['Special Marketing Cumulative'][0]
+  # else:
   FREIGHT_INTERCO_PER_UNIT = 0.0
   SPECIAL_MARKETING_PER_UNIT = 0.0
   SPECIAL_MARKETING_CUMULATIVE = 0.0
@@ -340,16 +347,21 @@ def getSummary(file):
     for index in DEFAULTS.index:
       parameter_name = f"{column}"
       value = DEFAULTS.loc[index, column]
-      defaults_list.append({'Parameter': parameter_name, 'Value': value})
+      try:
+          numeric_value = float(value)
+          if pd.notna(numeric_value):
+              defaults_list.append({'Parameter': parameter_name, 'Value': numeric_value})
+      except (ValueError, TypeError):
+          continue
   
-  additional_params = [
-    {'Parameter': 'Freight Interco Per Unit', 'Value': FREIGHT_INTERCO_PER_UNIT},
-    {'Parameter': 'Special Marketing Per Unit', 'Value': SPECIAL_MARKETING_PER_UNIT},
-    {'Parameter': 'Special Marketing Cumulative', 'Value': SPECIAL_MARKETING_CUMULATIVE}
-  ]
+  # additional_params = [
+  #   {'Parameter': 'Freight Interco Per Unit', 'Value': FREIGHT_INTERCO_PER_UNIT},
+  #   {'Parameter': 'Special Marketing Per Unit', 'Value': SPECIAL_MARKETING_PER_UNIT},
+  #   {'Parameter': 'Special Marketing Cumulative', 'Value': SPECIAL_MARKETING_CUMULATIVE}
+  # ]
   
-  combined_assumptions = defaults_list + additional_params
-  
+  # combined_assumptions = defaults_list + additional_params
+  combined_assumptions = defaults_list
   assumptions_df = pd.DataFrame(combined_assumptions)
   
   assumptions_df = assumptions_df.dropna()

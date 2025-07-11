@@ -4,7 +4,7 @@ import utility_library as util
 input_fileName = "ORL_ETB.xlsx"
 output_fileName = f"RESULT-{input_fileName}"
 
-def getSummary(file):
+def getSummary(file, user_defaults_df=None):
 
   def getQTYDefect(column):
     return output.loc[output['Metric'] == 'QTY Gross', column].iloc[0] * DEFECT_PERCENT
@@ -121,11 +121,17 @@ def getSummary(file):
   print('Reading DATA sheet...')
   DATA = pd.read_excel(file, sheet_name='Data', header=1)
   print('Reading Assumptions...')
-  ASSUMPTIONS = pd.read_excel(file, sheet_name='Defaults & Assumptions', header=3)
-  ASSUMPTIONS = ASSUMPTIONS.iloc[:, 1:]
+  if user_defaults_df is not None:
+    ASSUMPTIONS = user_defaults_df.copy().set_index('Parameter').T
+  else:
+    ASSUMPTIONS = pd.read_excel(file, sheet_name='Defaults & Assumptions', header=3)
+    ASSUMPTIONS = ASSUMPTIONS.iloc[:, 1:]
   print('Reading Defaults...')
-  DEFAULTS = pd.read_excel(file, sheet_name='Defaults & Assumptions', nrows=2)
-  DEFAULTS = DEFAULTS.iloc[:, 1:]
+  if user_defaults_df is not None:
+    DEFAULTS = user_defaults_df.copy().set_index('Parameter').T
+  else:
+    DEFAULTS = pd.read_excel(file, sheet_name='Defaults & Assumptions', nrows=2)
+    DEFAULTS = DEFAULTS.iloc[:, 1:]
 
   METRICS = [
     'QTY Gross',
@@ -182,7 +188,6 @@ def getSummary(file):
   RETURN_ALLOWANCE = DEFAULTS['Return Allowance '][0]
   CORE_DEVALUATION = DEFAULTS['Core Devaluation '][0]
   SCRAP_RETURN_RATE = DEFAULTS['Scrap Return Rate'][0]
-  print(ASSUMPTIONS.columns)
   VARIABLE_OVERHEAD = ASSUMPTIONS['Variable - Overhead'][0]
   LABOR = ASSUMPTIONS['Labor'][0]
   FREIGHT_INTERCO_CURRENT_PER_UNIT = ASSUMPTIONS['Freight interco \nper unit\ncurrent pricing'][0]

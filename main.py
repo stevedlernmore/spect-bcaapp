@@ -57,6 +57,12 @@ def to_excel_bytes(summary_df, defaults_df=None):
   output.seek(0)
   return output.getvalue()
 
+st.set_page_config(
+    page_title="Rapid BCA Analyzer",
+    page_icon="logo-spectra-premium.jpg", 
+    layout="wide"
+)
+
 st.markdown("""
 <style>
     /* Hide main menu */
@@ -446,19 +452,9 @@ st.markdown("""
     .stDataFrame td:last-child, .stDataFrame th:last-child {
         border-right: none !important;
     }
-            
-    div[style*="position: fixed"][style*="bottom: 0px"][style*="right: 0px"] {
-    display: none !important;
-}
 
 </style>
 """, unsafe_allow_html=True)
-
-st.set_page_config(
-    page_title="Rapid BCA Analyzer",
-    page_icon="logo-spectra-premium.jpg", 
-    layout="wide"
-)
 
 def check_password():
   def password_entered():
@@ -506,6 +502,10 @@ if check_password():
       st.session_state.input_defaults_df = None
   if 'modified_defaults_df' not in st.session_state:
       st.session_state.modified_defaults_df = None
+  if 'user_edit_summary_df' not in st.session_state:
+      st.session_state.user_edit_summary_df = None
+  if 'user_edit_defaults_df' not in st.session_state:
+      st.session_state.user_edit_defaults_df = None
 
   header_container = st.container()
   with header_container:
@@ -525,30 +525,28 @@ if check_password():
     st.image("logo-spectra-premium.jpg", width=300)
     st.markdown("</div>", unsafe_allow_html=True)
 
-  def process_file(uploaded_file):
+  def process_file(uploaded_file, user_defaults_df=None):
     filename = uploaded_file.name.upper()
     if filename.startswith('AMZ'):
-      return AMZ.getSummary(uploaded_file)
+      return AMZ.getSummary(uploaded_file, user_defaults_df)
     elif filename.startswith('PA'):
-      return PA.getSummary(uploaded_file)
+      return PA.getSummary(uploaded_file, user_defaults_df)
     elif filename.startswith('ORL'):
-      return ORL.getSummary(uploaded_file)
+      return ORL.getSummary(uploaded_file, user_defaults_df)
     else:
       raise ValueError("File name must start with 'AMZ', 'PA', or 'ORL' to determine the correct processing method.")
 
   main_container = st.container(border=True)
   with main_container:
-    input_tab, modified_tab, summary_tab = st.tabs(["Original File", "Modified File", "Summary Comparison"])
+    input_tab, summary_tab = st.tabs(["Original File", "Summary Comparison"])
 
     with input_tab:
       st.header("Upload Original BCA File")
-      st.write("Upload your original Business Case Analysis file. The system will automatically detect whether it's an AMZ, PA, or ORL file based on the filename.")
-      
+      st.write("Upload your original Business Case Analysis file. The system will automatically detect whether it's an AMZ or PA file based on the filename.")
       input_file = st.file_uploader(
         "Choose your original Excel file", 
         type=['xlsx', 'xls']
       )
-        
       if input_file is not None:
         file_type = getFileType(input_file.name)
         if st.session_state.input_file != input_file:
@@ -559,26 +557,50 @@ if check_password():
               output, assumptions = process_file(input_file)
               st.session_state.input_summary_df = output
               st.session_state.input_defaults_df = assumptions
-            st.toast("✅ File processed successfully!")
+              st.session_state.user_edit_defaults_df = None
+              st.session_state.user_edit_summary_df = None
           except Exception as e:
             st.error(f"❌ An error occurred: {str(e)}")
 
         if st.session_state.input_defaults_df is not None:
-          with st.expander("📋 View Defaults & Assumptions", expanded=False):
-            st.dataframe(
-              st.session_state.input_defaults_df,
+          with st.expander("📋 View & Edit Defaults & Assumptions", expanded=True):
+            editable_defaults = st.session_state.input_defaults_df.copy()
+            if 'Default Modifications' not in editable_defaults.columns:
+              editable_defaults['Default Modifications'] = editable_defaults['Value']
+            edited_defaults = st.data_editor(
+              editable_defaults,
               use_container_width=True,
-              hide_index=True
+              hide_index=True,
+              num_rows="dynamic",
+              key="editable_defaults",
+              disabled=[col for col in editable_defaults.columns if col != 'Default Modifications']
             )
-        
+            apply_changes = st.button("Calculate with Modified Values", key="apply_changes_button", use_container_width=True)
+            if apply_changes:
+              user_defaults = edited_defaults.copy()
+              user_defaults['Value'] = user_defaults['Default Modifications']
+              user_defaults = user_defaults.drop(columns=['Default Modifications'])
+              try:
+                with st.spinner('Recalculating with new defaults...'):
+                  import inspect
+                  process_args = inspect.getfullargspec(process_file).args
+                  if len(process_args) > 1:
+                    output, assumptions = process_file(st.session_state.input_file, user_defaults)
+                  else:
+                    output, assumptions = process_file(st.session_state.input_file)
+                  st.session_state.user_edit_summary_df = output
+                  st.session_state.user_edit_defaults_df = user_defaults
+                st.toast("✅ Recalculation complete! See Summary tab.")
+              except Exception as e:
+                st.error(f"❌ Error during recalculation: {str(e)}")
+
         if st.session_state.input_summary_df is not None:
-          with st.expander("📊 View Complete Summary", expanded=True):
+          with st.expander("📊 View Complete Summary", expanded=False):
             st.dataframe(
               format_dataframe_for_display(st.session_state.input_summary_df),
               use_container_width=True,
               hide_index=True,
             )
-
           file_name = f'{input_file.name.split(".")[0]}_export.xlsx'
           st.download_button(
             label="Download Summary",
@@ -588,173 +610,96 @@ if check_password():
             key="download_input_summary"
           )
 
-    with modified_tab:
-      st.header("Upload Modified BCA File")
-      st.write("Upload a modified version of your BCA file to compare changes and analyze the impact of modifications.")
-      
-      modified_file = st.file_uploader(
-        "Choose your modified Excel file", 
-        type=['xlsx', 'xls'],
-        key="modified_uploader"
-      )
-      
-      if modified_file is not None:
-        file_type = getFileType(modified_file.name)
-        if st.session_state.modified_file != modified_file:
-          st.toast(f"Starting {file_type} Calculations...")
-          st.session_state.modified_file = modified_file
-          try:
-            with st.spinner('Processing modified file... This may take a moment.'):
-              output, assumptions = process_file(modified_file)
-              st.session_state.modified_summary_df = output
-              st.session_state.modified_defaults_df = assumptions
-            st.toast("✅ Modified file processed successfully!")
-          except Exception as e:
-            st.error(f"❌ An error occurred: {str(e)}")
-
-        if st.session_state.modified_defaults_df is not None:
-          with st.expander("📋 View Modified Defaults & Assumptions", expanded=False):
-            st.dataframe(
-              st.session_state.modified_defaults_df,
-              use_container_width=True,
-              hide_index=True
-            )
-        
-        if st.session_state.modified_summary_df is not None:
-          with st.expander("📊 View Modified Summary", expanded=True):
-            st.dataframe(
-              format_dataframe_for_display(st.session_state.modified_summary_df),
-              use_container_width=True,
-              hide_index=True
-            )
-          file_name = f'{modified_file.name.split(".")[0]}_export.xlsx'
-          st.download_button(
-            label="Download Summary",
-            data=to_excel_bytes(st.session_state.modified_summary_df, st.session_state.modified_defaults_df),
-            file_name=file_name,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="download_modified_summary"
-          )
-
     with summary_tab:
-      if st.session_state.input_summary_df is not None and st.session_state.modified_summary_df is not None:
-        def get_file_type(filename):
-          filename_upper = filename.upper()
-          if filename_upper.startswith('AMZ'):
-            return "AMZ"
-          elif filename_upper.startswith('PA'):
-            return "PA"
-          elif filename_upper.startswith('ORL'):
-            return "ORL"
-          else:
-            return "UNKNOWN"
-        
-        input_file_type = get_file_type(st.session_state.input_file.name)
-        modified_file_type = get_file_type(st.session_state.modified_file.name)
-        
-        if input_file_type != modified_file_type:
-          st.error(f"❌ File Type Mismatch!")
-          st.warning(f"""
-          **Cannot compare files of different types:**
-          
-          - **Original File:** {input_file_type} ({st.session_state.input_file.name})
-          - **Modified File:** {modified_file_type} ({st.session_state.modified_file.name})
-          
-          Please upload files of the same type to perform comparison.
-          """)
-        else:
-          st.header("📊 Summary Comparison Analysis")
-          st.success(f"✅ Comparing {input_file_type} files: {st.session_state.input_file.name} vs {st.session_state.modified_file.name}")
-          
-          if st.session_state.input_defaults_df is not None and st.session_state.modified_defaults_df is not None:
-            st.subheader("📋 Changes in Defaults & Assumptions")
-        
-            input_defaults = st.session_state.input_defaults_df.set_index('Parameter')
-            modified_defaults = st.session_state.modified_defaults_df.set_index('Parameter')
-            common_params = input_defaults.index.intersection(modified_defaults.index)
-            
-            changes = []
-            for param in common_params:
-              original_value = input_defaults.loc[param, 'Value']
-              modified_value = modified_defaults.loc[param, 'Value']
-              try:
-                if pd.isna(original_value) and pd.isna(modified_value):
-                  continue
-                elif pd.isna(original_value) or pd.isna(modified_value):
-                  difference = "N/A"
-                elif abs(float(original_value) - float(modified_value)) > 1e-10:
-                  difference = float(modified_value) - float(original_value)
+      # Always compare original summary (input_summary_df) with recalculated (user_edit_summary_df) if present
+      input_df = st.session_state.input_summary_df
+      input_defaults_df = st.session_state.input_defaults_df
+      summary_df = st.session_state.user_edit_summary_df
+      defaults_df = st.session_state.user_edit_defaults_df
+      if input_df is not None and summary_df is not None:
+        st.header("📊 Summary Comparison Analysis")
+        st.success("✅ Comparing original file with user-edited defaults")
+        # Show changes in defaults
+        if input_defaults_df is not None and defaults_df is not None:
+          st.subheader("📋 Changes in Defaults & Assumptions")
+          input_defaults = input_defaults_df.set_index('Parameter')
+          modified_defaults = defaults_df.set_index('Parameter')
+          common_params = input_defaults.index.intersection(modified_defaults.index)
+          changes = []
+          for param in common_params:
+            original_value = input_defaults.loc[param, 'Value']
+            modified_value = modified_defaults.loc[param, 'Value']
+            try:
+              if pd.isna(original_value) and pd.isna(modified_value):
+                continue
+              elif pd.isna(original_value) or pd.isna(modified_value):
+                difference = "N/A"
+              elif abs(float(original_value) - float(modified_value)) > 1e-10:
+                difference = float(modified_value) - float(original_value)
+              else:
+                continue 
+            except (ValueError, TypeError):
+                if str(original_value) != str(modified_value):
+                    difference = "Text Changed"
                 else:
-                  continue 
-              except (ValueError, TypeError):
-                  if str(original_value) != str(modified_value):
-                      difference = "Text Changed"
-                  else:
-                      continue
-              
-              changes.append({
-                  'Parameter': param,
-                  'Original Value': original_value,
-                  'Modified Value': modified_value,
-                  'Change Description': f"{original_value} → {modified_value}"
-              })
-            
-            if changes:
-                changes_df = pd.DataFrame(changes)
-                st.dataframe(
-                    changes_df,
-                    use_container_width=True,
-                    hide_index=True
-                )
-            else:
-                st.info("✅ No changes detected in defaults and assumptions.")
-          
-          st.subheader("📊 Summary Data Comparison")
-          st.write("Below is the difference between your modified file and original file (Modified - Original):")
-      
-          try:
-              numeric_result = st.session_state.modified_summary_df.iloc[:, 1:] - st.session_state.input_summary_df.iloc[:, 1:]
-              result = pd.DataFrame(
-                  numeric_result.values,
-                  index=st.session_state.input_summary_df.iloc[:,0],
-                  columns=st.session_state.input_summary_df.columns[1:,]
-              )
-              result_with_metrics = result.reset_index()
-              result_with_metrics.rename(columns={'index': 'Metric'}, inplace=True)
+                    continue
+            changes.append({
+                'Parameter': param,
+                'Original Value': original_value,
+                'Modified Value': modified_value,
+                'Change Description': f"{original_value} → {modified_value}"
+            })
+          if changes:
+              changes_df = pd.DataFrame(changes)
               st.dataframe(
-                format_dataframe_for_display(result),
-                use_container_width=True,
-                height=600
+                  changes_df,
+                  use_container_width=True,
+                  hide_index=True
               )
-              file_name = f'{input_file.name.split(".")[0]}_comparison.xlsx'
-              st.download_button(
-                label="Download Summary",
-                data=to_excel_bytes(result_with_metrics),
-                file_name=file_name,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="download_comparison"
-              )
-          except Exception as e:
-            st.error(f"❌ Error calculating differences: {str(e)}")
-            st.info("💡 Make sure both files have the same structure and data types.")
+          else:
+              st.info("✅ No changes detected in defaults and assumptions.")
+        st.subheader("📊 Summary Data Comparison")
+        st.write("Below is the difference between your modified (user-edited) file and original file (Modified - Original):")
+        try:
+            numeric_result = summary_df.iloc[:, 1:] - input_df.iloc[:, 1:]
+            result = pd.DataFrame(
+                numeric_result.values,
+                index=input_df.iloc[:,0],
+                columns=input_df.columns[1:,]
+            )
+            result_with_metrics = result.reset_index()
+            result_with_metrics.rename(columns={'index': 'Metric'}, inplace=True)
+            st.dataframe(
+              format_dataframe_for_display(result),
+              use_container_width=True,
+              height=600
+            )
+            file_name = f'{st.session_state.input_file.name.split(".")[0]}_comparison.xlsx'
+            st.download_button(
+              label="Download Summary",
+              data=to_excel_bytes(result_with_metrics, defaults_df),
+              file_name=file_name,
+              mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              key="download_comparison"
+            )
+        except Exception as e:
+          st.error(f"❌ Error calculating differences: {str(e)}")
+          st.info("💡 Make sure both files have the same structure and data types.")
       else:
         st.header("Getting Started")
-        
         st.info("""
         To view the summary comparison:
         
         1. **Upload Original File** - Go to the "Original File" tab and upload your base BCA file
-        2. **Upload Modified File** - Go to the "Modified File" tab and upload your modified BCA file  
+        2. **Edit Defaults & Assumptions** - Edit values and click 'Apply Changes' to see the impact
         3. **View Comparison** - Return here to see the detailed comparison analysis
         
         Both files must be processed successfully before comparison can be performed.
         """)
-        
         original_status = "✅ Uploaded" if st.session_state.input_summary_df is not None else "❌ Not uploaded"
-        modified_status = "✅ Uploaded" if st.session_state.modified_summary_df is not None else "❌ Not uploaded"
-        
+        modified_status = "✅ Calculated" if st.session_state.get('user_edit_summary_df') is not None else "❌ Not calculated"
         col1, col2 = st.columns(2)
         with col1:
           st.info(f"**Original File Status:** {original_status}")
         with col2:
-          st.info(f"**Modified File Status:** {modified_status}")
+          st.info(f"**Modified (User-Edited) Status:** {modified_status}")

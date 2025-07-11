@@ -1,7 +1,7 @@
 import pandas as pd
 import utility_library as util
 
-def getSummary(file):
+def getSummary(file, user_defaults_df=None):
 
   def getSales(Pline, bulk=False):
     if Pline == 'All':
@@ -601,11 +601,18 @@ def getSummary(file):
   print('Reading AMZ DATA sheet...')
   DATA_V2 = pd.read_excel(file, sheet_name='DATA V2', header=1)
   print('Reading Assumptions...')
-  ASSUMPTIONS = pd.read_excel(file, sheet_name='Defaults & Assumptions', header=4)
-  ASSUMPTIONS = ASSUMPTIONS.iloc[:, 1:]
+  if user_defaults_df is not None:
+    ASSUMPTIONS = user_defaults_df.copy().set_index('Parameter').T
+  else:
+    ASSUMPTIONS = pd.read_excel(file, sheet_name='Defaults & Assumptions', header=4)
+    print("Default Assumptions not provided, using file defaults.")
+    ASSUMPTIONS = ASSUMPTIONS.iloc[:, 1:]
   print('Reading Defaults...')
-  DEFAULTS = pd.read_excel(file, sheet_name='Defaults & Assumptions', nrows=2)
-  DEFAULTS = DEFAULTS.iloc[:, 1:]
+  if user_defaults_df is not None:
+    DEFAULTS = user_defaults_df.copy().set_index('Parameter').T
+  else:
+    DEFAULTS = pd.read_excel(file, sheet_name='Defaults & Assumptions', nrows=2)
+    DEFAULTS = DEFAULTS.iloc[:, 1:]
   print('Reading Inspect Return Sheet...')
   INSPECT_RETURN = pd.read_excel(file, sheet_name='Inspect Return')
   print('Reading Return Allowance Sheet...')
