@@ -1,9 +1,6 @@
 import pandas as pd
 import utility_library as util
 
-input_fileName = "ORL_ETB.xlsx"
-output_fileName = f"RESULT-{input_fileName}"
-
 def getSummary(file, user_defaults_df=None):
 
   def getQTYDefect(column):

@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import AMZ
 import ORL
+import AZ
 import PA
 from io import BytesIO
 
@@ -486,6 +487,8 @@ def getFileType(file_name):
     return "Parts Authority"
   elif file_name.startswith('ORL'):
     return "OReilly"
+  elif file_name.startswith('AZ'):
+    return "AZ"
   else:
     raise ValueError("File name must start with 'AMZ', 'PA', or 'ORL' to determine the correct processing method.")
 
@@ -533,6 +536,8 @@ if check_password():
       return PA.getSummary(uploaded_file, user_defaults_df)
     elif filename.startswith('ORL'):
       return ORL.getSummary(uploaded_file, user_defaults_df)
+    elif filename.startswith('AZ'):
+      return AZ.getSummary(uploaded_file, user_defaults_df)
     else:
       raise ValueError("File name must start with 'AMZ', 'PA', or 'ORL' to determine the correct processing method.")
 
@@ -571,7 +576,6 @@ if check_password():
               editable_defaults,
               use_container_width=True,
               hide_index=True,
-              num_rows="dynamic",
               key="editable_defaults",
               disabled=[col for col in editable_defaults.columns if col != 'Default Modifications']
             )

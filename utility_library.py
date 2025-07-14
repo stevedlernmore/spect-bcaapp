@@ -4,7 +4,12 @@ def getSumGivenColumn(Pline, dataframe, column):
   if Pline == 'All':
     return dataframe[column].sum()
   else:
-    filtered_data = dataframe[dataframe['Pline'] == Pline]
+    if 'Pline' in dataframe.columns:
+      filtered_data = dataframe[dataframe['Pline'] == Pline]
+    elif 'P Line' in dataframe.columns:
+      filtered_data = dataframe[dataframe['P Line'] == Pline]
+    else:
+      raise KeyError("Neither 'Pline' nor 'P Line' column found in dataframe.")
     total_gross = filtered_data[column].sum()
     return total_gross
   
@@ -23,7 +28,7 @@ def getSumAndPerUnit(Pline, dataframe, column):
     per_unit = total / dataframe['L12 Shipped'].sum() if dataframe['L12 Shipped'].sum() != 0 else 0
     return total, per_unit
   else:
-    filtered_data = dataframe[dataframe['Pline'] == Pline]
+    filtered_data = dataframe[dataframe['Pline'] == Pline] or dataframe[dataframe['P Line'] == Pline]
     total = filtered_data[column].sum()
     per_unit = total / filtered_data['L12 Shipped'].sum() if filtered_data['L12 Shipped'].sum() != 0 else 0
     return total, per_unit
