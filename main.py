@@ -4,6 +4,7 @@ import AMZ
 import ORL
 import AZ
 import PA
+import UNITED
 from io import BytesIO
 
 def format_dataframe_for_display(df):
@@ -489,8 +490,10 @@ def getFileType(file_name):
     return "OReilly"
   elif file_name.startswith('AZ'):
     return "AZ"
+  elif file_name.startswith('UNITED'):
+    return "United"
   else:
-    raise ValueError("File name must start with 'AMZ', 'PA', or 'ORL' to determine the correct processing method.")
+    raise ValueError("File name must start with 'AMZ', 'PA', 'AZ', 'UNITED', or 'ORL' to determine the correct processing method.")
 
 if check_password():
   if 'input_file' not in st.session_state:
@@ -538,6 +541,8 @@ if check_password():
       return ORL.getSummary(uploaded_file, user_defaults_df)
     elif filename.startswith('AZ'):
       return AZ.getSummary(uploaded_file, user_defaults_df)
+    elif filename.startswith('UNITED'):
+      return UNITED.getSummary(uploaded_file, user_defaults_df)
     else:
       raise ValueError("File name must start with 'AMZ', 'PA', or 'ORL' to determine the correct processing method.")
 
@@ -547,7 +552,7 @@ if check_password():
 
     with input_tab:
       st.header("Upload Original BCA File")
-      st.write("Upload your original Business Case Analysis file. The system will automatically detect whether it's an AMZ, PA, ORL, or AZ file based on the filename.")
+      st.write("Upload your original Business Case Analysis file. The system will automatically detect whether it's an AMZ, PA, ORL, UNITED, or AZ file based on the filename.")
       input_file = st.file_uploader(
         "Choose your original Excel file", 
         type=['xlsx', 'xls']
