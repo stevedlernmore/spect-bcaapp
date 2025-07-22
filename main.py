@@ -551,7 +551,7 @@ if check_password():
 
     with input_tab:
       st.header("Upload Original BCA File")
-      st.write("Upload your original Business Case Analysis file. The system will automatically detect whether it's an AMZ, PA, ORL, UNITED, or AZ file based on the filename.")
+      st.write("Upload your original Business Case Analysis file. The system will automatically detect based on the filename.")
       input_file = st.file_uploader(
         "Choose your original Excel file", 
         type=['xlsx', 'xls']
