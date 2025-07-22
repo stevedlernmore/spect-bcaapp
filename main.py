@@ -54,7 +54,7 @@ def to_excel_bytes(summary_df, defaults_df=None):
   with pd.ExcelWriter(output, engine='openpyxl') as writer:
     summary_df.to_excel(writer, index=False, sheet_name='Summary')
     if defaults_df is not None:
-      defaults_df.to_excel(writer, index=False, sheet_name='Defaults & Assumptions')
+      defaults_df.to_excel(writer, sheet_name='Defaults & Assumptions')
   
   output.seek(0)
   return output.getvalue()
@@ -498,20 +498,19 @@ def getFileType(file_name):
 if check_password():
   if 'input_file' not in st.session_state:
       st.session_state.input_file = None
-  if 'modified_file' not in st.session_state:
-      st.session_state.modified_file = None
   if 'input_summary_df' not in st.session_state:
       st.session_state.input_summary_df = None
-  if 'modified_summary_df' not in st.session_state:
-      st.session_state.modified_summary_df = None
   if 'input_defaults_df' not in st.session_state:
       st.session_state.input_defaults_df = None
-  if 'modified_defaults_df' not in st.session_state:
-      st.session_state.modified_defaults_df = None
-  if 'user_edit_summary_df' not in st.session_state:
-      st.session_state.user_edit_summary_df = None
-  if 'user_edit_defaults_df' not in st.session_state:
-      st.session_state.user_edit_defaults_df = None
+  if 'input_assumptions_df' not in st.session_state:
+      st.session_state.input_assumptions_df = None
+
+  if 'user_assumptions_df' not in st.session_state:
+      st.session_state.user_assumptions_df = None
+  if 'user_defaults_df' not in st.session_state:
+      st.session_state.user_defaults_df = None
+  if 'user_summary_df' not in st.session_state:
+      st.session_state.user_summary_df = None
 
   header_container = st.container()
   with header_container:
@@ -564,44 +563,44 @@ if check_password():
           st.session_state.input_file = input_file
           try:
             with st.spinner('Processing file... This may take a moment.'):
-              output, assumptions = process_file(input_file)
+              output, assumption_test, defaults_test = process_file(input_file)
               st.session_state.input_summary_df = output
-              st.session_state.input_defaults_df = assumptions
-              st.session_state.user_edit_defaults_df = None
-              st.session_state.user_edit_summary_df = None
+              st.session_state.input_defaults_df = defaults_test
+              st.session_state.input_assumptions_df = assumption_test
+              if defaults_test is not None:
+                st.session_state.user_defaults_df = defaults_test.copy()
+              if assumption_test is not None:
+                st.session_state.user_assumptions_df = assumption_test.copy()
+              st.session_state.user_summary_df = None
           except Exception as e:
             st.error(f"❌ An error occurred: {str(e)}")
 
-        if st.session_state.input_defaults_df is not None:
-          with st.expander("📋 View & Edit Defaults & Assumptions", expanded=True):
-            editable_defaults = st.session_state.input_defaults_df.copy()
-            if 'Default Modifications' not in editable_defaults.columns:
-              editable_defaults['Default Modifications'] = editable_defaults['Value']
-            edited_defaults = st.data_editor(
-              editable_defaults,
-              use_container_width=True,
-              hide_index=True,
-              key="editable_defaults",
-              disabled=[col for col in editable_defaults.columns if col != 'Default Modifications']
-            )
-            apply_changes = st.button("Calculate with Modified Values", key="apply_changes_button", use_container_width=True)
-            if apply_changes:
-              user_defaults = edited_defaults.copy()
-              user_defaults['Value'] = user_defaults['Default Modifications']
-              user_defaults = user_defaults.drop(columns=['Default Modifications'])
-              try:
-                with st.spinner('Recalculating with new defaults...'):
-                  import inspect
-                  process_args = inspect.getfullargspec(process_file).args
-                  if len(process_args) > 1:
-                    output, assumptions = process_file(st.session_state.input_file, user_defaults)
-                  else:
-                    output, assumptions = process_file(st.session_state.input_file)
-                  st.session_state.user_edit_summary_df = output
-                  st.session_state.user_edit_defaults_df = user_defaults
-                st.toast("✅ Recalculation complete! See Summary tab.")
-              except Exception as e:
-                st.error(f"❌ Error during recalculation: {str(e)}")
+        if st.session_state.input_defaults_df is not None or st.session_state.input_assumptions_df is not None:
+          column1, column2 = st.columns(2)
+          with column1:
+            st.markdown("#### Assumptions")
+            with st.expander("See Assumptions", expanded=True):
+              if st.session_state.input_assumptions_df is None:
+                st.write("No assumptions found in the original file.")
+              else:
+                for x in st.session_state.input_assumptions_df:
+                  st.write(f"{x}:", st.session_state.input_assumptions_df[x])
+                  st.session_state.user_assumptions_df[x] = st.number_input(label=f"assumptions", value=st.session_state.input_assumptions_df[x], key=f"assumption_{x}", label_visibility="collapsed", format="%.4f")
+          with column2:
+            st.markdown("#### Defaults")
+            with st.expander("See Defaults", expanded=True):
+              if st.session_state.input_defaults_df is None:
+                st.write("No defaults found in the original file.")
+              else:
+                for x in st.session_state.input_defaults_df:
+                  st.write(f"{x}:", st.session_state.input_defaults_df[x])
+                  st.session_state.user_defaults_df[x] = st.number_input(label=f"defaults", value=st.session_state.input_defaults_df[x], key=f"defaults_{x}", label_visibility="collapsed", format="%.4f")  
+          apply_changes = st.button("Calculate with Modified Values", key="apply_changes_button", use_container_width=True)
+          if apply_changes:
+              st.toast("Calculating with modified values... This may take a moment.")
+              output, assumption_test, defaults_test = process_file(input_file, st.session_state.user_defaults_df | st.session_state.user_assumptions_df)
+              st.toast("Calculation complete!")
+              st.session_state.user_summary_df = output
 
         if st.session_state.input_summary_df is not None:
           with st.expander("📊 View Complete Summary", expanded=False):
@@ -611,33 +610,38 @@ if check_password():
               hide_index=True,
             )
           file_name = f'{input_file.name.split(".")[0]}_export.xlsx'
+          df = pd.DataFrame({
+            "Values":st.session_state.user_assumptions_df | st.session_state.user_defaults_df
+          })
           st.download_button(
             label="Download Summary",
-            data=to_excel_bytes(st.session_state.input_summary_df, st.session_state.input_defaults_df),
+            data=to_excel_bytes(st.session_state.input_summary_df, df),
             file_name=file_name,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key="download_input_summary"
           )
 
     with summary_tab:
-      # Always compare original summary (input_summary_df) with recalculated (user_edit_summary_df) if present
       input_df = st.session_state.input_summary_df
-      input_defaults_df = st.session_state.input_defaults_df
-      summary_df = st.session_state.user_edit_summary_df
-      defaults_df = st.session_state.user_edit_defaults_df
+      summary_df = st.session_state.user_summary_df
       if input_df is not None and summary_df is not None:
+        input_defaults_df = pd.DataFrame({
+          "Values": (st.session_state.input_defaults_df or {}) | (st.session_state.input_assumptions_df or {})
+        })
+        defaults_df = pd.DataFrame({
+          "Values": (st.session_state.user_defaults_df or {}) | (st.session_state.user_assumptions_df or {})
+        })
         st.header("📊 Summary Comparison Analysis")
         st.success("✅ Comparing original file with user-edited defaults")
-        # Show changes in defaults
         if input_defaults_df is not None and defaults_df is not None:
           st.subheader("📋 Changes in Defaults & Assumptions")
-          input_defaults = input_defaults_df.set_index('Parameter')
-          modified_defaults = defaults_df.set_index('Parameter')
+          input_defaults = input_defaults_df
+          modified_defaults = defaults_df
           common_params = input_defaults.index.intersection(modified_defaults.index)
           changes = []
           for param in common_params:
-            original_value = input_defaults.loc[param, 'Value']
-            modified_value = modified_defaults.loc[param, 'Value']
+            original_value = input_defaults.loc[param].loc['Values']
+            modified_value = modified_defaults.loc[param].loc['Values']
             try:
               if pd.isna(original_value) and pd.isna(modified_value):
                 continue

@@ -189,24 +189,15 @@ def getSummary(file, user_defaults_df=None):
 
   if user_defaults_df is not None:
     print('Using user defaults...')
-    
-    fm_su_mask = user_defaults_df['Parameter'].str.contains('FM |SU ')
-    defaults_mask = ~fm_su_mask
-    
-    if fm_su_mask.any():
-      fm_su_data = user_defaults_df[fm_su_mask].copy()
-      fm_su_data['Prefix'] = fm_su_data['Parameter'].str.extract('(FM|SU)')
-      fm_su_data['Clean_Parameter'] = fm_su_data['Parameter'].str.replace('FM |SU ', '', regex=True)
-      ASSUMPTIONS = fm_su_data.pivot(index='Prefix', columns='Clean_Parameter', values='Value')
-    else:
-      ASSUMPTIONS = pd.DataFrame()
-    
-    if defaults_mask.any():
-      defaults_data = user_defaults_df[defaults_mask]
-      DEFAULTS = defaults_data.set_index('Parameter').T
-    else:
-      DEFAULTS = pd.DataFrame()
-      
+    print(user_defaults_df)
+    ASSUMPTIONS = pd.DataFrame()
+    DEFAULTS = pd.DataFrame()
+    for data in user_defaults_df:
+      if 'SU' in data or 'FM' in data:
+        row, col = data.split(' ', 1)
+        ASSUMPTIONS.at[row, col] = user_defaults_df[data]
+      else:
+        DEFAULTS = pd.DataFrame({'Values': user_defaults_df}).T
   else:
     ASSUMPTIONS = pd.read_excel(file, sheet_name='Defaults & Assumptions', header=4, index_col=0)
     print('Reading Defaults...')
@@ -424,26 +415,24 @@ def getSummary(file, user_defaults_df=None):
   print('Calculation Contribution Margin %...')
   output.loc[output['Metric'] == 'Contribution Margin %', 'FM Cumulative'] = getContributionMarginPercent('FM Cumulative')
   output.loc[output['Metric'] == 'Contribution Margin %', 'SU Cumulative'] = getContributionMarginPercent('SU Cumulative')
-
-  # Flatten ASSUMPTIONS and DEFAULTS into a single row DataFrame
-  assumptions_list = []
+  print(ASSUMPTIONS)
+  assumptions_list = {}
   for column in ASSUMPTIONS.columns:
     for index in ASSUMPTIONS.index:
+      if 'Unnamed' in column:
+        continue
       parameter_name = f"{index} {column}"
       value = ASSUMPTIONS.loc[index, column]
-      assumptions_list.append({'Parameter': parameter_name, 'Value': value})
+      assumptions_list[parameter_name] = round(float(value),4)
   
-  defaults_list = []
+  defaults_list = {}
   for column in DEFAULTS.columns:
     for index in DEFAULTS.index:
+      if 'Unnamed' in column:
+        continue
       parameter_name = f"{column}"
       value = DEFAULTS.loc[index, column]
-      defaults_list.append({'Parameter': parameter_name, 'Value': value})
+      defaults_list[parameter_name] = round(float(value),4)
   
-  combined_assumptions = assumptions_list + defaults_list
+  return output, assumptions_list, defaults_list
   
-  assumptions_df = pd.DataFrame(combined_assumptions)
-  
-  assumptions_df = assumptions_df.dropna()
-
-  return output, assumptions_df

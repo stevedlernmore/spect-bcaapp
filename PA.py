@@ -8,7 +8,7 @@ def getSummary(file, user_defaults_df=None):
   DATA = DATA.dropna(subset=['Pline'])
   print('Reading Default and Assumptions sheets...')
   if user_defaults_df is not None:
-    DEFAULTS = user_defaults_df.copy().set_index('Parameter').T
+    DEFAULTS = pd.DataFrame({'Values': user_defaults_df}).T
   else:
     DEFAULTS = pd.read_excel(file, sheet_name='Defaults & Assumptions')
   print('Reading Default and Assumptions sheets...')
@@ -342,28 +342,17 @@ def getSummary(file, user_defaults_df=None):
   print('Calculating Contribution Margin...')
   getContributionMargin()
 
-  defaults_list = []
+  defaults_list = {}
   for column in DEFAULTS.columns:
+    if 'Unnamed' in column:
+      continue
     for index in DEFAULTS.index:
       parameter_name = f"{column}"
       value = DEFAULTS.loc[index, column]
       try:
-          numeric_value = float(value)
-          if pd.notna(numeric_value):
-              defaults_list.append({'Parameter': parameter_name, 'Value': numeric_value})
-      except (ValueError, TypeError):
-          continue
-  
-  # additional_params = [
-  #   {'Parameter': 'Freight Interco Per Unit', 'Value': FREIGHT_INTERCO_PER_UNIT},
-  #   {'Parameter': 'Special Marketing Per Unit', 'Value': SPECIAL_MARKETING_PER_UNIT},
-  #   {'Parameter': 'Special Marketing Cumulative', 'Value': SPECIAL_MARKETING_CUMULATIVE}
-  # ]
-  
-  # combined_assumptions = defaults_list + additional_params
-  combined_assumptions = defaults_list
-  assumptions_df = pd.DataFrame(combined_assumptions)
-  
-  assumptions_df = assumptions_df.dropna()
-
-  return output, assumptions_df
+        float(value)
+      except (TypeError, ValueError):
+        continue
+      defaults_list[parameter_name] = round(float(value),4)
+  print(defaults_list)
+  return output, None , defaults_list

@@ -602,14 +602,14 @@ def getSummary(file, user_defaults_df=None):
   DATA_V2 = pd.read_excel(file, sheet_name='DATA V2', header=1)
   print('Reading Assumptions...')
   if user_defaults_df is not None:
-    ASSUMPTIONS = user_defaults_df.copy().set_index('Parameter').T
+    ASSUMPTIONS = pd.DataFrame({'Values': user_defaults_df}).T
   else:
     ASSUMPTIONS = pd.read_excel(file, sheet_name='Defaults & Assumptions', header=4)
     print("Default Assumptions not provided, using file defaults.")
     ASSUMPTIONS = ASSUMPTIONS.iloc[:, 1:]
   print('Reading Defaults...')
   if user_defaults_df is not None:
-    DEFAULTS = user_defaults_df.copy().set_index('Parameter').T
+    DEFAULTS = pd.DataFrame({'Values': user_defaults_df}).T
   else:
     DEFAULTS = pd.read_excel(file, sheet_name='Defaults & Assumptions', nrows=2)
     DEFAULTS = DEFAULTS.iloc[:, 1:]
@@ -816,24 +816,22 @@ def getSummary(file, user_defaults_df=None):
   print('Calculating Contribution Margin values...')
   getContributionMargin()
 
-  assumptions_list = []
+  assumptions_list = {}
   for column in ASSUMPTIONS.columns:
+    if 'Unnamed' in column:
+      continue
     for index in ASSUMPTIONS.index:
       parameter_name = f"{column}"
       value = ASSUMPTIONS.loc[index, column]
-      assumptions_list.append({'Parameter': parameter_name, 'Value': value})
+      assumptions_list[parameter_name] = round(float(value),4)
   
-  defaults_list = []
+  defaults_list = {}
   for column in DEFAULTS.columns:
+    if 'Unnamed' in column:
+      continue
     for index in DEFAULTS.index:
       parameter_name = f"{column}"
       value = DEFAULTS.loc[index, column]
-      defaults_list.append({'Parameter': parameter_name, 'Value': value})
+      defaults_list[parameter_name] = round(float(value),4)
   
-  combined_assumptions = assumptions_list + defaults_list
-  
-  assumptions_df = pd.DataFrame(combined_assumptions)
-  
-  assumptions_df = assumptions_df.dropna()
-  
-  return output, assumptions_df
+  return output, assumptions_list, defaults_list

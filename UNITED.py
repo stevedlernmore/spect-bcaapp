@@ -192,9 +192,18 @@ def getSummary(file, user_defaults_df=None):
 
   print('Reading Defaults...')
   if user_defaults_df is not None:
-    DEFAULTS = user_defaults_df.set_index('Parameter').T
+    DEFAULTS = pd.DataFrame({'Values': user_defaults_df}).T
   else:
-    DEFAULTS = pd.read_excel(file, sheet_name='Defaults & Assumptions')
+    DEFAULTS = pd.read_excel(file, sheet_name='Defaults & Assumptions', nrows=2)
+
+  print('Reading Assumptions...')
+  if user_defaults_df is not None:
+    ASSUMPTIONS = pd.DataFrame({'Values': user_defaults_df}).T
+  else:
+    ASSUMPTIONS = pd.read_excel(file, sheet_name='Defaults & Assumptions', header=3)
+  
+  print(DEFAULTS)
+  print(ASSUMPTIONS)
 
   print('Initializing output DataFrame...')
   output = pd.DataFrame(columns= COLUMNS)
@@ -241,11 +250,11 @@ def getSummary(file, user_defaults_df=None):
   output.loc[output['Metric'] == 'FG PO cost', 'New Per Unit'] = getPerUnit('FG PO cost', 'New Cumulative')
 
   print('Calculating Variable - Overhead...')
-  output.loc[output['Metric'] == 'Variable - Overhead', 'New Cumulative'] = DEFAULTS.iloc[0]['Variable - Overhead Cumulative']
+  output.loc[output['Metric'] == 'Variable - Overhead', 'New Cumulative'] = ASSUMPTIONS.iloc[0]['Variable - Overhead Cumulative']
   output.loc[output['Metric'] == 'Variable - Overhead', 'New Per Unit'] = getPerUnit('Variable - Overhead', 'New Cumulative')
 
   print('Calculating Labor...')
-  output.loc[output['Metric'] == 'Labor', 'New Cumulative'] = DEFAULTS.iloc[0]['Labor Cumulative']
+  output.loc[output['Metric'] == 'Labor', 'New Cumulative'] = ASSUMPTIONS.iloc[0]['Labor Cumulative']
   output.loc[output['Metric'] == 'Labor', 'New Per Unit'] = getPerUnit('Labor', 'New Cumulative')
 
   print('Calculating Duty...')
@@ -276,7 +285,7 @@ def getSummary(file, user_defaults_df=None):
   output.loc[output['Metric'] == 'MARGIN %', 'New Cumulative'] = getMarginPercent('New Cumulative')
 
   print('Calculating Handling/Shipping...')
-  output.loc[output['Metric'] == 'Handling/Shipping', 'New Per Unit'] = DEFAULTS.iloc[0]['Handling/Shipping Per Unit']
+  output.loc[output['Metric'] == 'Handling/Shipping', 'New Per Unit'] = ASSUMPTIONS.iloc[0]['Handling/Shipping Per Unit']
   output.loc[output['Metric'] == 'Handling/Shipping', 'New Cumulative'] = output.loc[output['Metric'] == 'Handling/Shipping', 'New Per Unit'].iloc[0] * output.loc[output['Metric'] == 'QTY Gross', 'New Cumulative'].iloc[0]
 
   print('Calculating Fill Rate Fines...')
@@ -292,15 +301,15 @@ def getSummary(file, user_defaults_df=None):
   output.loc[output['Metric'] == 'Return Allowance Put Away Costs, for usable product', 'New Cumulative'] = getPutAwayCumulative('New Cumulative')
 
   print('Calculating Special Marketing (we control)...')
-  output.loc[output['Metric'] == 'Special Marketing (we control)', 'New Cumulative'] = DEFAULTS.iloc[0]['Special Marketing Cumulative']
-  output.loc[output['Metric'] == 'Special Marketing (we control)', 'New Per Unit'] = DEFAULTS.iloc[0]['Special Marketing Per Unit']
+  output.loc[output['Metric'] == 'Special Marketing (we control)', 'New Cumulative'] = ASSUMPTIONS.iloc[0]['Special Marketing Cumulative']
+  output.loc[output['Metric'] == 'Special Marketing (we control)', 'New Per Unit'] = ASSUMPTIONS.iloc[0]['Special Marketing Per Unit']
 
   print('Calculating Pallets / Wrapping...')
-  output.loc[output['Metric'] == 'Pallets / Wrapping', 'New Per Unit'] = DEFAULTS.iloc[0]['Pallets / Wrapping Per Unit']
+  output.loc[output['Metric'] == 'Pallets / Wrapping', 'New Per Unit'] = ASSUMPTIONS.iloc[0]['Pallets / Wrapping Per Unit']
   output.loc[output['Metric'] == 'Pallets / Wrapping', 'New Cumulative'] = output.loc[output['Metric'] == 'Pallets / Wrapping', 'New Per Unit'].iloc[0] * output.loc[output['Metric'] == 'QTY Gross', 'New Cumulative'].iloc[0]
 
   print('Calculating Delivery ...')
-  output.loc[output['Metric'] == 'Delivery ', 'New Per Unit'] = DEFAULTS.iloc[0]['Delivery Per Unit']
+  output.loc[output['Metric'] == 'Delivery ', 'New Per Unit'] = ASSUMPTIONS.iloc[0]['Delivery Per Unit']
   output.loc[output['Metric'] == 'Delivery ', 'New Cumulative'] = output.loc[output['Metric'] == 'Delivery ', 'New Per Unit'].iloc[0] * output.loc[output['Metric'] == 'QTY Gross', 'New Cumulative'].iloc[0]
 
   print('Calculating SG&A...')
@@ -318,13 +327,22 @@ def getSummary(file, user_defaults_df=None):
   print('Calculating Contribution Margin %...')
   output.loc[output['Metric'] == 'Contribution Margin %', 'New Cumulative'] = getContributionMarginPercent('New Cumulative')
 
-  defaults_list = []
+  assumptions_list = {}
+  for column in ASSUMPTIONS.columns:
+    if 'Unnamed' in column:
+      continue
+    for index in ASSUMPTIONS.index:
+      parameter_name = f"{column}"
+      value = ASSUMPTIONS.loc[index, column]
+      assumptions_list[parameter_name] = round(float(value),4)
+  
+  defaults_list = {}
   for column in DEFAULTS.columns:
+    if 'Unnamed' in column:
+      continue
     for index in DEFAULTS.index:
       parameter_name = f"{column}"
       value = DEFAULTS.loc[index, column]
-      defaults_list.append({'Parameter': parameter_name, 'Value': value})
+      defaults_list[parameter_name] = round(float(value),4)
   
-  assumptions_df = pd.DataFrame(defaults_list)
-  
-  return output, assumptions_df
+  return output, assumptions_list, defaults_list
