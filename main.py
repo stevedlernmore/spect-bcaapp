@@ -5,7 +5,13 @@ import ORL
 import AZ
 import PA
 import UNITED
+import VAST
 from io import BytesIO
+from openai import OpenAI
+
+AI_client = OpenAI(
+  api_key=st.secrets["OPEN_AI_KEY"]
+)
 
 def format_dataframe_for_display(df):
   display_df = df.copy()
@@ -492,8 +498,10 @@ def getFileType(file_name):
     return "AZ"
   elif file_name.startswith('UNITED'):
     return "United"
+  elif file_name.startswith('VAST'):
+    return "VAST"
   else:
-    raise ValueError("File name must start with 'AMZ', 'PA', 'AZ', 'UNITED', or 'ORL' to determine the correct processing method.")
+    raise ValueError("File name must start with 'AMZ', 'PA', 'AZ', 'UNITED', 'VAST', or 'ORL' to determine the correct processing method.")
 
 if check_password():
   if 'input_file' not in st.session_state:
@@ -542,6 +550,8 @@ if check_password():
       return AZ.getSummary(uploaded_file, user_defaults_df)
     elif filename.startswith('UNITED'):
       return UNITED.getSummary(uploaded_file, user_defaults_df)
+    elif filename.startswith('VAST'):
+      return VAST.getSummary(uploaded_file, user_defaults_df)
     else:
       raise ValueError("File name must start with 'AMZ', 'PA', or 'ORL' to determine the correct processing method.")
 
@@ -574,33 +584,56 @@ if check_password():
               st.session_state.user_summary_df = None
           except Exception as e:
             st.error(f"❌ An error occurred: {str(e)}")
-
-        if st.session_state.input_defaults_df is not None or st.session_state.input_assumptions_df is not None:
-          column1, column2 = st.columns(2)
-          with column1:
-            st.markdown("#### Assumptions")
-            with st.expander("See Assumptions", expanded=True):
-              if st.session_state.input_assumptions_df is None:
-                st.write("No assumptions found in the original file.")
-              else:
-                for x in st.session_state.input_assumptions_df:
-                  st.write(f"{x}:", st.session_state.input_assumptions_df[x])
-                  st.session_state.user_assumptions_df[x] = st.number_input(label=f"assumptions", value=st.session_state.input_assumptions_df[x], key=f"assumption_{x}", label_visibility="collapsed", format="%.4f")
-          with column2:
-            st.markdown("#### Defaults")
-            with st.expander("See Defaults", expanded=True):
-              if st.session_state.input_defaults_df is None:
-                st.write("No defaults found in the original file.")
-              else:
-                for x in st.session_state.input_defaults_df:
-                  st.write(f"{x}:", st.session_state.input_defaults_df[x])
-                  st.session_state.user_defaults_df[x] = st.number_input(label=f"defaults", value=st.session_state.input_defaults_df[x], key=f"defaults_{x}", label_visibility="collapsed", format="%.4f")  
-          apply_changes = st.button("Calculate with Modified Values", key="apply_changes_button", use_container_width=True)
-          if apply_changes:
-              st.toast("Calculating with modified values... This may take a moment.")
-              output, assumption_test, defaults_test = process_file(input_file, st.session_state.user_defaults_df | st.session_state.user_assumptions_df)
-              st.toast("Calculation complete!")
-              st.session_state.user_summary_df = output
+        if file_type == "VAST":
+          col1, col2 = st.columns(2)
+          with col1:
+            st.markdown("#### Current Values")
+            with st.expander("See Current", expanded=True):
+              for x in st.session_state.input_assumptions_df.get('Current'):
+                st.write(f"**{x}**:", st.session_state.input_assumptions_df.get('Current')[x])
+          with col2:
+            st.markdown("#### New Values")
+            with st.expander("See New", expanded=True):
+              for x in st.session_state.input_assumptions_df.get('New'):
+                st.write(f"**{x}**:", st.session_state.input_assumptions_df.get('New')[x])
+          st.markdown("#### Assumptions")
+          with st.expander("See Assumptions", expanded=True):
+            for x in st.session_state.input_defaults_df:
+              st.write(f"**{x}**:", st.session_state.input_defaults_df[x])
+        else:
+          if st.session_state.input_defaults_df is not None or st.session_state.input_assumptions_df is not None:
+            column1, column2 = st.columns(2)
+            with column1:
+              st.markdown("#### Assumptions")
+              with st.expander("See Assumptions", expanded=True):
+                if st.session_state.input_assumptions_df is None:
+                  st.write("No assumptions found in the original file.")
+                else:
+                  for x in st.session_state.input_assumptions_df:
+                    subcol1, subcol2 = st.columns(2)
+                    with subcol1:
+                      st.write(f"{x}:", st.session_state.input_assumptions_df[x])
+                    with subcol2:
+                      st.session_state.user_assumptions_df[x] = st.number_input(label=f"assumptions", value=st.session_state.input_assumptions_df[x], key=f"assumption_{x}", label_visibility="collapsed", format="%.4f")
+            with column2:
+              st.markdown("#### Defaults")
+              with st.expander("See Defaults", expanded=True):
+                if st.session_state.input_defaults_df is None:
+                  st.write("No defaults found in the original file.")
+                else:
+                  for x in st.session_state.input_defaults_df:
+                    subcol1, subcol2 = st.columns(2)
+                    with subcol1:
+                      st.write(f"{x}:", st.session_state.input_defaults_df[x])
+                    with subcol2:
+                      st.session_state.user_defaults_df[x] = st.number_input(label=f"defaults", value=st.session_state.input_defaults_df[x], key=f"defaults_{x}", label_visibility="collapsed", format="%.4f")  
+            apply_changes = st.button("Calculate with Modified Values", key="apply_changes_button", use_container_width=True)
+            if apply_changes:
+                st.toast("Calculating with modified values... This may take a moment.")
+                output, assumption_test, defaults_test = process_file(input_file, (st.session_state.user_defaults_df or {}) | (st.session_state.user_assumptions_df or {}))
+                st.toast("Calculation complete!")
+                st.session_state.user_summary_df = output
+                st.session_state.response = "Analysis in progress..."
 
         if st.session_state.input_summary_df is not None:
           with st.expander("📊 View Complete Summary", expanded=False):
@@ -611,7 +644,7 @@ if check_password():
             )
           file_name = f'{input_file.name.split(".")[0]}_export.xlsx'
           df = pd.DataFrame({
-            "Values":st.session_state.user_assumptions_df | st.session_state.user_defaults_df
+            "Values":(st.session_state.user_assumptions_df or {}) | (st.session_state.user_defaults_df or {})
           })
           st.download_button(
             label="Download Summary",
@@ -632,7 +665,20 @@ if check_password():
           "Values": (st.session_state.user_defaults_df or {}) | (st.session_state.user_assumptions_df or {})
         })
         st.header("📊 Summary Comparison Analysis")
-        st.success("✅ Comparing original file with user-edited defaults")
+        
+        # Check if we need to generate AI analysis
+        should_generate_analysis = False
+        if 'response' not in st.session_state:
+          st.session_state.response = "Click 'Calculate with Modified Values' to generate analysis..."
+          should_generate_analysis = False
+        elif st.session_state.response == "Analysis in progress...":
+          should_generate_analysis = True
+        
+        # Display current response
+        if st.session_state.response == "Click 'Calculate with Modified Values' to generate analysis...":
+          st.info(st.session_state.response)
+        else:
+          st.success(st.session_state.response)
         if input_defaults_df is not None and defaults_df is not None:
           st.subheader("📋 Changes in Defaults & Assumptions")
           input_defaults = input_defaults_df
@@ -687,6 +733,59 @@ if check_password():
               use_container_width=True,
               height=600
             )
+            
+            # Only run AI analysis when triggered by button press
+            if should_generate_analysis:
+                with st.spinner("Generating AI analysis..."):
+                    response = AI_client.chat.completions.create(
+                      model="gpt-3.5-turbo",
+                      messages=[
+                        {
+                          "role": "system",
+                          "content": "You are an expert in business case analysis and financial metrics."
+                        },
+                        {
+                          "role": "user",
+                          "content": f'''You are analyzing a Business Case Analysis (BCA) where parameter changes have been made to defaults and assumptions. 
+
+                          CONTEXT:
+                          - The analysis covers multiple products, where each pair of "Cumulative" and "Per Unit" columns represents a separate product line
+                          - Changes in defaults/assumptions affect all products but may have varying impacts across different product lines
+                          - The results show the numerical difference (Modified BCA - Original BCA) for each metric
+
+                          PARAMETER CHANGES MADE:
+                          {changes_df.to_string(index=False)}
+
+                          FINANCIAL IMPACT ANALYSIS (Difference: Modified - Original):
+                          {result_with_metrics.to_string(index=False)}
+
+                          ANALYSIS REQUIREMENTS:
+                          1. **Executive Summary** (100 words max): Provide an overall assessment of how the parameter changes affected the business case, highlighting the most significant impacts and whether the changes improved or worsened the financial outlook.
+
+                          2. **Detailed Impact Analysis** (7 bullet points):
+                            - For each significant parameter change, explain its business impact
+                            - Quantify both nominal dollar amounts and percentage changes where meaningful
+                            - Identify which product lines (if multiple) are most affected
+                            - Distinguish between cumulative (total impact) vs per-unit impacts
+                            - Highlight any concerning negative impacts or positive improvements
+                            - Address changes in key financial metrics (NPV, ROI, payback period, etc.)
+                            - Provide actionable insights for business decision-making
+
+                          FORMATTING GUIDELINES:
+                          - Use specific dollar amounts and percentages from the data
+                          - Clearly distinguish between different products when multiple exist
+                          - Focus on business implications, not just numerical changes
+                          - Identify the most critical metrics for decision-making
+                          - Use positive/negative language appropriately (e.g., "improvement in NPV" vs "deterioration in ROI")
+
+                          Provide analysis that enables stakeholders to understand both the magnitude and business significance of these changes.'''
+                        }
+                      ],
+                      max_tokens=3500,
+                      temperature=0.2
+                    )
+                    st.session_state.response = response.choices[0].message.content
+                    st.rerun() 
             file_name = f'{st.session_state.input_file.name.split(".")[0]}_comparison.xlsx'
             st.download_button(
               label="Download Summary",
@@ -716,3 +815,4 @@ if check_password():
           st.info(f"**Original File Status:** {original_status}")
         with col2:
           st.info(f"**Modified (User-Edited) Status:** {modified_status}")
+
