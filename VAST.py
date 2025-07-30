@@ -1,7 +1,7 @@
 import pandas as pd
 import utility_library as util
 
-def getSummary(file, user_defaults_df=None):
+def getSummary(file, user_defaults_df=None, volume=0.0):
 
   def getPerUnit(row, column):
     return output.loc[output['Metric'] == row, column].iloc[0] / output.loc[output['Metric'] == 'QTY Gross', column].iloc[0]

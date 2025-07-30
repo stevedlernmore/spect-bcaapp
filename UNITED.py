@@ -1,7 +1,7 @@
 import pandas as pd
 import utility_library as util
 
-def getSummary(file, user_defaults_df=None):
+def getSummary(file, user_defaults_df=None, volume=0.0):
   def getQTYTotal(column):
     gross = output.loc[output['Metric'] == 'QTY Gross', column].iloc[0]
     defect = output.loc[output['Metric'] == 'QTY Defect', column].iloc[0]
@@ -12,7 +12,9 @@ def getSummary(file, user_defaults_df=None):
 
   def getSales(DATA):
     values = DATA['Annual usage'] * DATA['NEW Invoice']
-    return values.sum()
+    total = values.sum()
+    total = total + (total * volume/100)
+    return total
 
   def getPerUnit(row, column):
     return output.loc[output['Metric'] == row, column].iloc[0] / output.loc[output['Metric'] == 'QTY Gross', column].iloc[0]
@@ -210,7 +212,8 @@ def getSummary(file, user_defaults_df=None):
   output['Metric'] = METRICS
 
   print('Calculating QTY Gross...')
-  output.loc[output['Metric'] == 'QTY Gross', 'New Cumulative'] = util.getSumGivenColumn('All', DATA, 'Annual usage')
+  gross = util.getSumGivenColumn('All', DATA, 'Annual usage')
+  output.loc[output['Metric'] == 'QTY Gross', 'New Cumulative'] = gross + (gross * volume/100)
 
   print('Calculating QTY Defect %...')
   output.loc[output['Metric'] == 'Defect %', 'New Cumulative'] = DEFAULTS.iloc[0]['Defect %']
