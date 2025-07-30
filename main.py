@@ -794,10 +794,10 @@ if check_password():
                         - The results show the numerical difference (Modified BCA - Original BCA) for each metric
 
                         PARAMETER CHANGES MADE:
-                        {changes_df.to_string(index=False)}
+                        {changes_df.to_csv(index=False) if file_type != "Amazon" else changes_df.to_string(index=False)}
 
                         FINANCIAL IMPACT ANALYSIS (Difference: Modified - Original):
-                        {result_with_metrics.to_string(index=False)}
+                        {result_with_metrics.to_csv(index=False) if file_type != "Amazon" else result_with_metrics.to_string(index=False)}
 
                         ANALYSIS REQUIREMENTS:
                         1. **Executive Summary** (100 words max): Provide an overall assessment of how the parameter changes affected the business case, highlighting the most significant impacts and whether the changes improved or worsened the financial outlook.
