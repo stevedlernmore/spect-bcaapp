@@ -14,7 +14,7 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
     'Delivery Cost',
     'Special Marketing (We Control)']
 
-  DATA = pd.read_excel(file, sheet_name="Refactored Data")
+  DATA = pd.read_excel(file, sheet_name="Data")
   PRODUCT_LINES = DATA['P Line'].unique()
   if user_defaults_df is not None:
     ASSUMPTIONS = pd.DataFrame()
