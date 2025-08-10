@@ -203,7 +203,6 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
     print('Reading Defaults...')
     DEFAULTS = pd.read_excel(file, sheet_name='Defaults & Assumptions', nrows=2)
 
-
   PRIMARY_REBATE = DEFAULTS['Primary Rebate'].iloc[0]
   MDM_VENDOR_NET_PROMOTIONAL_ALLOWANCE = DEFAULTS['MDM / Vendor Net Promotional Allowance + Display Allowance '].iloc[0]
   AGENCY_REP = DEFAULTS['Agency Rep'].iloc[0]
@@ -439,6 +438,6 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
       parameter_name = f"{column}"
       value = DEFAULTS.loc[index, column]
       defaults_list[parameter_name] = round(float(value),4)
-  
+  print(defaults_list, assumptions_list)
   return output, assumptions_list, defaults_list
   

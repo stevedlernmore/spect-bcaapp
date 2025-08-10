@@ -6,6 +6,7 @@ import AZ
 import PA
 import UNITED
 import VAST
+import standard
 from io import BytesIO
 from openai import OpenAI
 
@@ -507,7 +508,7 @@ def getFileType(file_name):
   elif file_name.startswith('VAST'):
     return "VAST"
   else:
-    raise ValueError("File name must start with 'AMZ', 'PA', 'AZ', 'UNITED', 'VAST', or 'ORL' to determine the correct processing method.")
+    return "Standard BCA"
 
 if check_password():
   if 'input_file' not in st.session_state:
@@ -518,7 +519,6 @@ if check_password():
       st.session_state.input_defaults_df = None
   if 'input_assumptions_df' not in st.session_state:
       st.session_state.input_assumptions_df = None
-
   if 'user_assumptions_df' not in st.session_state:
       st.session_state.user_assumptions_df = None
   if 'user_defaults_df' not in st.session_state:
@@ -559,7 +559,7 @@ if check_password():
     elif filename.startswith('VAST'):
       return VAST.getSummary(uploaded_file, user_defaults_df, volume)
     else:
-      raise ValueError("File name must start with 'AMZ', 'PA', or 'ORL' to determine the correct processing method.")
+      return standard.getSummary(uploaded_file, user_defaults_df, volume)
 
   main_container = st.container(border=True)
   with main_container:
@@ -591,6 +591,7 @@ if check_password():
           except Exception as e:
             st.error(f"❌ An error occurred: {str(e)}")
         def formatter(name, value, defaults=False):
+          print(name, value)
           if 'per unit' in name.lower() or 'cumulative' in name.lower() or 'big' in name.lower() or 'shipping' in name.lower() or 'return allowance' in name.lower() or 'pallets' in name.lower() or 'delivery' in name.lower() or 'inspect return' in name.lower() or 'rebox' in name.lower() or 'labor' in name.lower() or 'overhead' in name.lower() or 'special marketing' in name.lower():
             if defaults:
               value = f"% {value*100:.3f}"
@@ -652,7 +653,7 @@ if check_password():
                   for x in st.session_state.input_defaults_df:
                     subcol1, subcol2 = st.columns([3, 1])
                     with subcol1:
-                      st.write(f"{x}:\n" + formatter(x, st.session_state.input_defaults_df[x], True))
+                      st.write(f"{x}:\n" + formatter(x, st.session_state.input_defaults_df[x], False))
                     with subcol2:
                       st.session_state.user_defaults_df[x] = st.number_input(label=f"defaults", value=st.session_state.input_defaults_df[x], key=f"defaults_{x}", label_visibility="collapsed", format="%.4f")  
             apply_changes = st.button("Calculate with Modified Values", key="apply_changes_button", use_container_width=True)
@@ -782,44 +783,63 @@ if check_password():
                     messages=[
                       {
                         "role": "system",
-                        "content": "You are an expert in business case analysis and financial metrics."
+                        "content": "You are an expert business case analyst specializing in financial impact assessment and strategic decision-making. Analyze parameter changes in Business Case Analysis (BCA) and provide structured, actionable insights."
                       },
                       {
                         "role": "user",
-                        "content": f'''You are analyzing a Business Case Analysis (BCA) where parameter changes have been made to defaults and assumptions. 
+                        "content": f'''Analyze the following Business Case Analysis data and provide a structured response in the exact format specified:
 
-                        CONTEXT:
-                        - The analysis covers multiple products, where each pair of "Cumulative" and "Per Unit" columns represents a separate product line
-                        - Changes in defaults/assumptions affect all products but may have varying impacts across different product lines
-                        - The results show the numerical difference (Modified BCA - Original BCA) for each metric
+            {{
+              "analysis_context": {{
+                "scenario": "Parameter optimization analysis comparing Modified BCA vs Original BCA",
+                "data_structure": "Multiple product lines with Cumulative and Per Unit metrics",
+                "calculation_method": "Difference analysis (Modified - Original values)"
+              }},
+              "input_data": {{
+                "parameter_changes": {changes_df.to_csv(index=False) if file_type != "Amazon" else changes_df.to_string(index=False)},
+                "financial_impact_differences": {result_with_metrics.to_csv(index=False) if file_type != "Amazon" else result_with_metrics.to_string(index=False)}
+              }},
+              "analysis_requirements": {{
+                "executive_summary": {{
+                  "word_limit": 100,
+                  "focus_areas": ["Overall financial impact", "Contribution margin % trend"],
+                  "format_requirements": ["Bold critical statements using **text**", "Clear positive/negative assessment"]
+                }},
+                "detailed_impact_analysis": {{
+                  "bullet_count": "5-7 points",
+                  "required_elements": [
+                    "Parameter-specific business impact",
+                    "Quantified dollar amounts and percentages", 
+                    "Product line differentiation",
+                    "Cumulative vs per-unit distinction",
+                    "Risk/opportunity identification",
+                    "Key financial metrics analysis",
+                    "Actionable business insights"
+                  ],
+                  "format": "**Impact Title**: Detailed description with specific numbers (1-2 sentences)"
+                }}
+              }},
+              "output_format": {{
+                "structure": [
+                  "### Executive Summary",
+                  "### Detailed Impact Analysis"
+                ],
+                "guidelines": [
+                  "Use specific dollar amounts and percentages from provided data",
+                  "Distinguish between different product lines when applicable",
+                  "Focus on business implications over numerical changes",
+                  "Highlight critical metrics for decision-making",
+                  "Use appropriate positive/negative language for financial impacts"
+                ]
+              }}
+            }}
 
-                        PARAMETER CHANGES MADE:
-                        {changes_df.to_csv(index=False) if file_type != "Amazon" else changes_df.to_string(index=False)}
+            RESPOND WITH:
+            ## Executive Summary
+            [100-word assessment focusing on contribution margin % as primary indicator. Bold key statements with **text**]
 
-                        FINANCIAL IMPACT ANALYSIS (Difference: Modified - Original):
-                        {result_with_metrics.to_csv(index=False) if file_type != "Amazon" else result_with_metrics.to_string(index=False)}
-
-                        ANALYSIS REQUIREMENTS:
-                        1. **Executive Summary** (100 words max): Provide an overall assessment of how the parameter changes affected the business case, highlighting the most significant impacts and whether the changes improved or worsened the financial outlook.
-                          - Focus on the last row, the contribution margin %, as the overall impact to the BCA. If its negative, the changes worsened the BCA, if positive, they improved it. Apply ** ** for the statement to be in bold format.
-
-                        2. **Detailed Impact Analysis** (5-7 bullet points):
-                          - For each significant parameter change, explain its business impact
-                          - Quantify both nominal dollar amounts and percentage changes where meaningful
-                          - Identify which product lines (if multiple) are most affected
-                          - Distinguish between cumulative (total impact) vs per-unit impacts
-                          - Highlight any concerning negative impacts or positive improvements
-                          - Address changes in key financial metrics
-                          - Provide actionable insights for business decision-making
-                          - Format: [**Impact Title**]: [Description of impact, including dollar amounts and percentages in 1-2 high context sentences.]
-
-                        FORMATTING GUIDELINES:
-                        - Use specific dollar amounts and percentages from the data
-                        - Clearly distinguish between different products when multiple exist
-                        - Focus on business implications, not just numerical changes
-                        - Identify the most critical metrics for decision-making
-                        - Use positive/negative language appropriately
-                        '''
+            ## Detailed Impact Analysis
+            [5-7 bullet points in format: **Impact Title**: Description with specific dollar amounts and percentages]'''
                       }
                     ],
                     max_tokens=3500,

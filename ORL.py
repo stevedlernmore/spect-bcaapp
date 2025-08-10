@@ -170,6 +170,7 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
     'Contribution Margin',
     'Contribution Margin %'
   ]
+  
   COLUMNS = [
     'Metric',
     'GTN/CGT Current Cumulative',
