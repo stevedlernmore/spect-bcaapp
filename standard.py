@@ -65,7 +65,7 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
   output.loc['FACTORING %', 'All Lines Per Unit'] = util.getPerUnit('FACTORING %', 'All Lines Cumulative', output)
   output.loc['Contribution Margin', 'All Lines Cumulative'] = total_contribution_margin
   output.loc['Contribution Margin', 'All Lines Per Unit'] = util.getPerUnit('Contribution Margin', 'All Lines Cumulative', output)
-  total_margin = output.loc['MARGIN', 'All Lines Cumulative']
+  total_margin = output.loc['Contribution Margin', 'All Lines Cumulative']
   total_net_sales = output.loc['NET SALES', 'All Lines Cumulative']
   output.loc['Contribution Margin %', 'All Lines Cumulative'] = total_margin / total_net_sales
 
