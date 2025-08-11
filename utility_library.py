@@ -49,13 +49,24 @@ def getPerUnit(row, column, output):
 
 # STANDARD
 def QTY_CALCULATIONS(PRODUCT_LINES, output, DATA, ASSUMPTIONS, volume):
+  total_gross = 0
   for line in PRODUCT_LINES:
     gross = getSumGivenColumn(line, DATA, 'Qty')
     output.loc['QTY Gross', f'{line} Cumulative'] = gross + (gross/100*volume)
+    total_gross += output.loc['QTY Gross', f'{line} Cumulative']
     output.loc['Defect %', f'{line} Cumulative'] = ASSUMPTIONS.loc[line, 'Defect %']
+  output.loc['QTY Gross', 'All Lines Cumulative'] = total_gross
+  total_defect = 0
+  total_total = 0
   for line in PRODUCT_LINES:
     output.loc['QTY Defect', f'{line} Cumulative'] = output.loc['QTY Gross', f'{line} Cumulative'] * output.loc['Defect %', f'{line} Cumulative'] * -1
     output.loc['QTY Total', f'{line} Cumulative'] = output.loc['QTY Gross', f'{line} Cumulative'] + output.loc['QTY Defect', f'{line} Cumulative']
+    total_defect += output.loc['QTY Defect', f'{line} Cumulative']
+    total_total += output.loc['QTY Total', f'{line} Cumulative']
+  output.loc['QTY Defect', 'All Lines Cumulative'] = total_defect
+  output.loc['QTY Total', 'All Lines Cumulative'] = total_total
+  defect_percent = total_defect / total_gross
+  output.loc['Defect %', 'All Lines Cumulative'] = defect_percent * -1
   return output
 
 # STANDARD
@@ -83,15 +94,18 @@ def GET_NETSALES_MARGIN_METRICS(FORMAT):
 # STANDARD
 def NET_SALES_CALCULATIONS(output, DATA, ASSUMPTIONS, NET_SALES_METRICS, PRODUCT_LINES, DEFAULTS, volume):
   for metric in NET_SALES_METRICS:
+    total_metric = 0
     specific_pline = extract_parentheses_content(metric)
     if metric == 'Defect':
       for line in PRODUCT_LINES:
         output.loc[metric, f'{line} Cumulative'] = output.loc['Sales', f'{line} Cumulative'] * ASSUMPTIONS.loc[line, 'Defect %']
+        total_metric += output.loc[metric, f'{line} Cumulative']
         output.loc[metric, f'{line} Per Unit'] = getPerUnit(metric, f'{line} Cumulative', output)
     elif metric not in DEFAULTS:
       for line in PRODUCT_LINES:
         temp_sale = getSumGivenColumn(line, DATA, metric)
         output.loc[metric, f'{line} Cumulative'] = temp_sale + (temp_sale/100*volume)
+        total_metric += output.loc[metric, f'{line} Cumulative']
         output.loc[metric, f'{line} Per Unit'] = getPerUnit(metric, f'{line} Cumulative', output)
     else:
       loss = -1
@@ -100,84 +114,117 @@ def NET_SALES_CALCULATIONS(output, DATA, ASSUMPTIONS, NET_SALES_METRICS, PRODUCT
       for line in PRODUCT_LINES:
         if line in specific_pline or specific_pline == []:
           output.loc[metric, f'{line} Cumulative'] = output.loc['Sales', f'{line} Cumulative'] * DEFAULTS.get(metric) * loss
+          total_metric += output.loc[metric, f'{line} Cumulative']
         else:
           output.loc[metric, f'{line} Cumulative'] = 0
         output.loc[metric, f'{line} Per Unit'] = getPerUnit(metric, f'{line} Cumulative', output)
-
+    output.loc[metric, 'All Lines Cumulative'] = total_metric
+  total_metric = 0
   for line in PRODUCT_LINES:
     agency_rep = 0
     for metric in NET_SALES_METRICS:
       if metric != 'Agency Rep':
         agency_rep += output.loc[metric, f'{line} Cumulative']
     output.loc['Agency Rep', f'{line} Cumulative'] = agency_rep * -1 * DEFAULTS.get('Agency Rep', 0)
+    total_metric += output.loc['Agency Rep', f'{line} Cumulative']
     output.loc['Agency Rep', f'{line} Per Unit'] = getPerUnit('Agency Rep', f'{line} Cumulative', output)
-
+  output.loc['Agency Rep', 'All Lines Cumulative'] = total_metric
+  total_net_sales = 0
   for line in PRODUCT_LINES:
     net_sales = 0
     for metric in NET_SALES_METRICS:
       net_sales += output.loc[metric, f'{line} Cumulative']
     output.loc['NET SALES', f'{line} Cumulative'] = net_sales
+    total_net_sales += net_sales
     output.loc['NET SALES', f'{line} Per Unit'] = getPerUnit('NET SALES', f'{line} Cumulative', output)
 
+  output.loc['NET SALES', 'All Lines Cumulative'] = total_net_sales
+  for metric in NET_SALES_METRICS:
+    output.loc[metric, 'All Lines Per Unit'] = getPerUnit(metric, 'All Lines Cumulative', output)
+  output.loc['NET SALES', 'All Lines Per Unit'] = getPerUnit('NET SALES', 'All Lines Cumulative', output)
   return output
 
 # STANDARD
 def MARGIN_CALCULATIONS(PRODUCT_LINES, MARGIN_METRICS, output, DATA, DEFAULTS, FORMAT):
+  for metric in MARGIN_METRICS:
+    output.loc[metric, 'All Lines Cumulative'] = 0
   for line in PRODUCT_LINES:
     for metric in MARGIN_METRICS:
       try:
         if metric == 'Cost':
           output.loc[metric, f'{line} Cumulative'] = getSumGivenColumn(line, DATA, 'Total Cost')
+          output.loc[metric, 'All Lines Cumulative'] += output.loc[metric, f'{line} Cumulative']
         else:
           output.loc[metric, f'{line} Cumulative'] = getSumGivenColumn(line, DATA, metric)
+          output.loc[metric, 'All Lines Cumulative'] += output.loc[metric, f'{line} Cumulative']
       except:
         output.loc[metric, f'{line} Cumulative'] = 0
       output.loc[metric, f'{line} Per Unit'] = getPerUnit(metric, f'{line} Cumulative', output)
+      output.loc[metric, 'All Lines Per Unit'] = getPerUnit(metric, 'All Lines Cumulative', output)
 
+  total_metric = 0
   for line in PRODUCT_LINES:
     scrap_return = 0
     for metric in MARGIN_METRICS:
       if metric != 'Scrap Return Rate':
         if FORMAT.loc[metric].iloc[1] == 1:
-          print(f'{metric} included in scrap return rate')
           scrap_return += output.loc[metric, f'{line} Per Unit']
-        else:
-          print(f'{metric} not included in scrap return rate')
     return_allowance = output.loc['Return Allowance', f'{line} Cumulative']
     per_unit_sales = output.loc['NET SALES', f'{line} Per Unit']
     output.loc['Scrap Return Rate', f'{line} Cumulative'] = (1-DEFAULTS.get('Scrap Return Rate'))*(return_allowance/per_unit_sales)*scrap_return
+    total_metric += output.loc['Scrap Return Rate', f'{line} Cumulative']
     output.loc['Scrap Return Rate', f'{line} Per Unit'] = getPerUnit('Scrap Return Rate', f'{line} Cumulative', output)
+  output.loc['Scrap Return Rate', 'All Lines Cumulative'] = total_metric
+  output.loc['Scrap Return Rate', 'All Lines Per Unit'] = getPerUnit('Scrap Return Rate', 'All Lines Cumulative', output)
 
+  total_variable_cost = 0
+  total_margin = 0
   for line in PRODUCT_LINES:
     variable_cost = 0
     for metric in MARGIN_METRICS:
       variable_cost += output.loc[metric, f'{line} Cumulative']
     output.loc['TOTAL VARIABLE COST', f'{line} Cumulative'] = variable_cost
+    total_variable_cost += variable_cost
     output.loc['TOTAL VARIABLE COST', f'{line} Per Unit'] = getPerUnit('TOTAL VARIABLE COST', f'{line} Cumulative', output)
     net_sales = output.loc['NET SALES', f'{line} Cumulative']
     margin = net_sales - output.loc['TOTAL VARIABLE COST', f'{line} Cumulative']
     output.loc['MARGIN', f'{line} Cumulative'] = margin
+    total_margin += margin
     output.loc['MARGIN', f'{line} Per Unit'] = getPerUnit('MARGIN', f'{line} Cumulative', output)
     margin_perc = margin / net_sales
     output.loc['MARGIN %', f'{line} Cumulative'] = margin_perc
+
+  output.loc['TOTAL VARIABLE COST', 'All Lines Cumulative'] = total_variable_cost
+  output.loc['TOTAL VARIABLE COST', 'All Lines Per Unit'] = getPerUnit('TOTAL VARIABLE COST', 'All Lines Cumulative', output)
+  output.loc['MARGIN', 'All Lines Cumulative'] = total_margin
+  output.loc['MARGIN', 'All Lines Per Unit'] = getPerUnit('MARGIN', 'All Lines Cumulative', output)
+  output.loc['MARGIN %', 'All Lines Cumulative'] = output.loc['MARGIN', 'All Lines Cumulative'] / output.loc['NET SALES', 'All Lines Cumulative']
 
   return output
 
 # STANDARD
 def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS):
+  for metric in SGA_METRICS:
+    output.loc[metric, 'All Lines Cumulative'] = 0
+  output.loc['SG&A', 'All Lines Cumulative'] = 0
   for line in PRODUCT_LINES:
     output.loc['Handling/Shipping', f'{line} Per Unit'] = ASSUMPTIONS.loc[line, 'Handling/Shipping']
     output.loc['Handling/Shipping', f'{line} Cumulative'] = ASSUMPTIONS.loc[line, 'Handling/Shipping'] * output.loc['QTY Gross', f'{line} Cumulative']
+    output.loc['Handling/Shipping', 'All Lines Cumulative'] += output.loc['Handling/Shipping', f'{line} Cumulative']
     output.loc['Fill Rate Fines', f'{line} Cumulative'] = output.loc['NET SALES', f'{line} Cumulative'] * DEFAULTS.get('Fill Rate Fines', 0)
+    output.loc['Fill Rate Fines', 'All Lines Cumulative'] += output.loc['Fill Rate Fines', f'{line} Cumulative']
     output.loc['Fill Rate Fines', f'{line} Per Unit'] = getPerUnit('Fill Rate Fines', f'{line} Cumulative', output)
     output.loc['Inspect Return', f'{line} Per Unit'] = ASSUMPTIONS.loc[line, 'Handling/Shipping']
     output.loc['Return Allowance Put Away/Rebox', f'{line} Per Unit'] = ASSUMPTIONS.loc[line, 'Handling/Shipping']+ASSUMPTIONS.loc[line, 'Return Allowance Put Away/Rebox']
     output.loc['Pallets / Wrapping', f'{line} Per Unit'] = ASSUMPTIONS.loc[line, 'Pallets / Wrapping']
     output.loc['Pallets / Wrapping', f'{line} Cumulative'] = ASSUMPTIONS.loc[line, 'Pallets / Wrapping'] * output.loc['QTY Gross', f'{line} Cumulative']
+    output.loc['Pallets / Wrapping', 'All Lines Cumulative'] += output.loc['Pallets / Wrapping', f'{line} Cumulative']
     output.loc['Delivery Cost', f'{line} Per Unit'] = ASSUMPTIONS.loc[line, 'Delivery Cost']
     output.loc['Delivery Cost', f'{line} Cumulative'] = ASSUMPTIONS.loc[line, 'Delivery Cost'] * output.loc['QTY Gross', f'{line} Cumulative']
+    output.loc['Delivery Cost', 'All Lines Cumulative'] += output.loc['Delivery Cost', f'{line} Cumulative']
     output.loc['Special Marketing (We Control)', f'{line} Per Unit'] = ASSUMPTIONS.loc[line, 'Special Marketing (We Control)']
     output.loc['Special Marketing (We Control)', f'{line} Cumulative'] = ASSUMPTIONS.loc[line, 'Special Marketing (We Control)'] * output.loc['QTY Gross', f'{line} Cumulative']
+    output.loc['Special Marketing (We Control)', 'All Lines Cumulative'] += output.loc['Special Marketing (We Control)', f'{line} Cumulative']
     return_allowance = output.loc['Return Allowance', f'{line} Cumulative']
     per_unit_sales = output.loc['NET SALES', f'{line} Per Unit']
     per_unit_inspect = output.loc['Inspect Return', f'{line} Per Unit']
@@ -186,11 +233,18 @@ def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS):
       output.loc['Inspect Return', f'{line} Cumulative'] = 0
     else:
       output.loc['Inspect Return', f'{line} Cumulative'] = (return_allowance/per_unit_sales)*per_unit_inspect*-1
+      output.loc['Inspect Return', 'All Lines Cumulative'] += output.loc['Inspect Return', f'{line} Cumulative']
     output.loc['Return Allowance Put Away/Rebox', f'{line} Cumulative'] = (return_allowance/per_unit_sales)*per_unit_rebox*-1*(1-DEFAULTS.get('Scrap Return Rate', 0))
+    output.loc['Return Allowance Put Away/Rebox', 'All Lines Cumulative'] += output.loc['Return Allowance Put Away/Rebox', f'{line} Cumulative']
     SGA = 0
     for metric in SGA_METRICS:
       SGA += output.loc[metric, f'{line} Cumulative']
     output.loc['SG&A', f'{line} Cumulative'] = SGA
+    output.loc['SG&A', 'All Lines Cumulative'] += SGA
     output.loc['SG&A', f'{line} Per Unit'] = getPerUnit('SG&A', f'{line} Cumulative', output)
+
+  for metric in SGA_METRICS:
+    output.loc[metric, 'All Lines Per Unit'] = getPerUnit(metric, 'All Lines Cumulative', output)
+  output.loc['SG&A', 'All Lines Per Unit'] = getPerUnit('SG&A', 'All Lines Cumulative', output)
 
   return output
