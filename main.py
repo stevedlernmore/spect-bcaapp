@@ -20,6 +20,108 @@ def escape_markdown(text):
         text = text.replace(char, f"\\{char}")
     return text
 
+def format_value_for_input(name, value):
+    """Format a value for display in text input based on its type"""
+    if value is None:
+        return ""
+    
+    if 'per unit' in name.lower() or 'cumulative' in name.lower() or 'big' in name.lower() or \
+       'shipping' in name.lower() or 'return allowance' in name.lower() or 'pallets' in name.lower() or \
+       'delivery' in name.lower() or 'inspect return' in name.lower() or 'rebox' in name.lower() or \
+       'labor' in name.lower() or 'overhead' in name.lower() or 'special marketing' in name.lower():
+        if 'alliance' in name.lower():
+            return f"{value*100:.3f}%"
+        else:
+            return f"${value:.2f}"
+    elif 'qty' in name.lower():
+        return f"{value}"
+    else:
+        return f"{value*100:.3f}%"
+
+def parse_input_value(name, input_str):
+    """Parse a formatted input string back to numeric value"""
+    if not input_str or input_str.strip() == "":
+        return 0.0
+    
+    # Remove any extra whitespace
+    input_str = input_str.strip()
+    
+    try:
+        # Check if it's a percentage
+        if input_str.endswith('%'):
+            # Remove % and convert to decimal
+            numeric_part = input_str[:-1].strip()
+            value = float(numeric_part) / 100.0
+        elif input_str.startswith('$'):
+            # Remove $ and parse as dollar amount
+            numeric_part = input_str[1:].strip()
+            value = float(numeric_part)
+        else:
+            # It's a regular number (like quantities)
+            value = float(input_str)
+        
+        return value
+    except (ValueError, TypeError):
+        # If parsing fails, return 0
+        return 0.0
+
+def auto_format_input(name, input_str):
+    """Automatically format input by adding appropriate signs (%, $) based on field type"""
+    if not input_str or input_str.strip() == "":
+        return ""
+    
+    input_str = input_str.strip()
+    
+    # If already properly formatted, return as-is
+    if input_str.endswith('%') or input_str.startswith('$'):
+        return input_str
+    
+    # Check field type and add appropriate formatting
+    is_percentage_field = not ('per unit' in name.lower() or 'cumulative' in name.lower() or 
+                              'big' in name.lower() or 'shipping' in name.lower() or 
+                              'return allowance' in name.lower() or 'pallets' in name.lower() or 
+                              'delivery' in name.lower() or 'inspect return' in name.lower() or 
+                              'rebox' in name.lower() or 'labor' in name.lower() or 
+                              'overhead' in name.lower() or 'special marketing' in name.lower() or
+                              'qty' in name.lower())
+    
+    is_dollar_field = ('per unit' in name.lower() or 'cumulative' in name.lower() or 
+                      'big' in name.lower() or 'shipping' in name.lower() or 
+                      'return allowance' in name.lower() or 'pallets' in name.lower() or 
+                      'delivery' in name.lower() or 'inspect return' in name.lower() or 
+                      'rebox' in name.lower() or 'labor' in name.lower() or 
+                      'overhead' in name.lower() or 'special marketing' in name.lower()) and \
+                     not 'alliance' in name.lower()
+    
+    is_quantity_field = 'qty' in name.lower()
+    
+    try:
+        # Try to parse as number first
+        float(input_str)
+        
+        # Add appropriate formatting
+        if is_percentage_field:
+            return f"{input_str}%"
+        elif is_dollar_field:
+            return f"${input_str}"
+        else:  # quantity field
+            return input_str
+    except ValueError:
+        # If it's not a valid number, return as-is
+        return input_str
+
+def validate_input_format(name, input_str):
+    """Validate that input format is correct for the field type"""
+    if not input_str or input_str.strip() == "":
+        return True, ""
+    
+    # Try to parse the value
+    try:
+        parse_input_value(name, input_str)
+        return True, ""
+    except:
+        return False, "Invalid number format"
+
 def format_dataframe_for_display(df):
   display_df = df.copy()
   for col in display_df.columns:
@@ -510,6 +612,65 @@ def getFileType(file_name):
   else:
     return "Standard BCA"
 
+def getFileTypeDetails(file_type, input_file=None):
+  """Get detailed information about the file type and calculation method"""
+  details = {
+    "Amazon": {
+      "description": "Amazon Business Case Analysis",
+      "calculation_method": "Standard BCA calculation with Amazon-specific pricing and rebate structures",
+      "key_features": ["Volume-based rebates", "Fulfillment fees", "Amazon-specific return policies"],
+      "processor": "AMZ.getSummary()"
+    },
+    "Parts Authority": {
+      "description": "Parts Authority Business Case Analysis", 
+      "calculation_method": "PA-specific pricing model with distributor margins and rebate calculations",
+      "key_features": ["Distributor pricing", "Volume rebates", "PA return policies"],
+      "processor": "PA.getSummary()"
+    },
+    "OReilly": {
+      "description": "O'Reilly Auto Parts Business Case Analysis",
+      "calculation_method": "O'Reilly specific pricing and rebate calculation methodology",
+      "key_features": ["Retail pricing model", "Store-level rebates", "O'Reilly return policies"],
+      "processor": "ORL.getSummary()"
+    },
+    "AZ": {
+      "description": "AutoZone Business Case Analysis",
+      "calculation_method": "AutoZone-specific pricing and rebate calculation framework",
+      "key_features": ["AutoZone pricing structure", "Volume incentives", "AZ return policies"],
+      "processor": "AZ.getSummary()"
+    },
+    "United": {
+      "description": "United Auto Parts Business Case Analysis",
+      "calculation_method": "United-specific distributor pricing and rebate calculations",
+      "key_features": ["United pricing model", "Distributor rebates", "United return policies"],
+      "processor": "UNITED.getSummary()"
+    },
+    "VAST": {
+      "description": "VAST Auto Distribution Business Case Analysis",
+      "calculation_method": "VAST-specific pricing model with unique rebate structures",
+      "key_features": ["VAST pricing framework", "Distribution rebates", "VAST return policies"],
+      "processor": "VAST.getSummary()"
+    },
+    "Standard BCA": {
+      "description": "Standard Business Case Analysis",
+      "calculation_method": "Generic BCA calculation suitable for various business scenarios",
+      "key_features": ["Standard pricing model", "Configurable rebates", "Generic return policies"],
+      "processor": "standard.getSummary()"
+    }
+  }
+  
+  file_info = details.get(file_type, details["Standard BCA"])
+  
+  # Add file size if available
+  if input_file:
+    try:
+      file_size = len(input_file.getvalue()) / 1024  # Size in KB
+      file_info["file_size"] = f"{file_size:.1f} KB"
+    except:
+      file_info["file_size"] = "Unknown"
+  
+  return file_info
+
 if check_password():
   if 'input_file' not in st.session_state:
       st.session_state.input_file = None
@@ -570,6 +731,7 @@ if check_password():
       st.write("Upload your original Business Case Analysis file. The system will automatically detect based on the filename.")
       input_file = st.file_uploader(
         "Choose your original Excel file", 
+        label_visibility="collapsed",
         type=['xlsx', 'xls']
       )
       if input_file is not None:
@@ -621,7 +783,9 @@ if check_password():
             for x in st.session_state.input_defaults_df:
               st.write(f"{x}:", formatter(x, st.session_state.input_defaults_df[x], True))
         else:
-          if st.session_state.input_defaults_df is not None or st.session_state.input_assumptions_df is not None:
+          if st.session_state.input_defaults_df is not None or st.session_state.input_assumptions_df is not None: 
+            st.subheader(f'{file_type} Business Case Analysis')
+            st.write('You can adjust the following parameters to see their impact on the analysis:')
             qty_col1, qty_col2, qty_col3 = st.columns([1,2,1])
             with qty_col2:
               st.write("#### Quantity Volume Control")
@@ -630,7 +794,34 @@ if check_password():
                 with column1:
                   st.write('Volume Percentage Change:', formatter('Volume Percentage Change', 0.0))
                 with column2:
-                  volume = st.number_input(label="Volume Percentage Change", label_visibility="collapsed", value=0.0, key="volumne", help="Adjust the volume percentage to see how it affects the analysis.")
+                  # Initialize session state for volume text input if not exists
+                  if "volume_text" not in st.session_state:
+                    st.session_state.volume_text = "0.0%"
+                  
+                  # Text input for volume percentage
+                  volume_text = st.text_input(
+                    label="Volume Percentage Change", 
+                    value=st.session_state.volume_text,
+                    key="volume_input", 
+                    label_visibility="collapsed", 
+                    help="Adjust the volume percentage to see how it affects the analysis (e.g., 5.0% for 5% increase)"
+                  )
+                  
+                  # Auto-format the volume input
+                  formatted_volume = auto_format_input("Volume Percentage Change", volume_text)
+                  
+                  # Validate and parse volume input
+                  is_valid, error_msg = validate_input_format("Volume Percentage Change", formatted_volume)
+                  if not is_valid:
+                    st.error(error_msg)
+                    volume = 0.0
+                  else:
+                    volume = parse_input_value("Volume Percentage Change", formatted_volume)
+                    if formatted_volume != volume_text:
+                      st.session_state.volume_text = formatted_volume
+                      st.rerun()
+                    else:
+                      st.session_state.volume_text = formatted_volume
             column1, column2 = st.columns(2)
             with column1:
               st.markdown("#### Assumptions")
@@ -638,24 +829,107 @@ if check_password():
                 if st.session_state.input_assumptions_df is None:
                   st.write("No assumptions found in the original file.")
                 else:
+                  # Create column headers
+                  header_col1, header_col2, header_col3 = st.columns([3, 1.5, 1.5])
+                  with header_col1:
+                    st.markdown("**Parameter**")
+                  with header_col2:
+                    st.markdown("**Original Value**")
+                  with header_col3:
+                    st.markdown("**Your Value**")
                   for x in st.session_state.input_assumptions_df:
-                    subcol1, subcol2 = st.columns([3, 1])
-                    with subcol1:
-                      st.write(f"{x}:\n" + formatter(x, st.session_state.input_assumptions_df[x]))
-                    with subcol2:
-                      st.session_state.user_assumptions_df[x] = st.number_input(label=f"assumptions", value=st.session_state.input_assumptions_df[x], key=f"assumption_{x}", label_visibility="collapsed", format="%.4f")
+                    param_col1, param_col2, param_col3 = st.columns([3, 1.5, 1.5])
+                    
+                    with param_col1:
+                      st.markdown(f"{x}")
+                    
+                    with param_col2:
+                      original_formatted = format_value_for_input(x, st.session_state.input_assumptions_df[x])
+                      st.markdown(f"`{original_formatted}`")
+                    
+                    with param_col3:
+                      text_key = f"assumption_text_{x}"
+                      if text_key not in st.session_state:
+                        st.session_state[text_key] = format_value_for_input(x, st.session_state.input_assumptions_df[x])
+                      
+                      text_value = st.text_input(
+                        label=f"Edit {x}", 
+                        value=st.session_state[text_key],
+                        key=f"assumption_{x}", 
+                        label_visibility="collapsed",
+                        help=f"Enter your value for {x}",
+                        placeholder="Enter value..."
+                      )
+                      
+                      formatted_value = auto_format_input(x, text_value)
+                      
+                      # Validate and parse the input
+                      is_valid, error_msg = validate_input_format(x, formatted_value)
+                      if not is_valid:
+                        st.error(error_msg)
+                      else:
+                        # Store the parsed numeric value and update the formatted text
+                        st.session_state.user_assumptions_df[x] = parse_input_value(x, formatted_value)
+                        if formatted_value != text_value:
+                          st.session_state[text_key] = formatted_value
+                          st.rerun()
+                        else:
+                          st.session_state[text_key] = formatted_value
             with column2:
               st.markdown("#### Defaults")
               with st.expander("See Defaults", expanded=True):
                 if st.session_state.input_defaults_df is None:
                   st.write("No defaults found in the original file.")
                 else:
+                  # Create column headers
+                  header_col1, header_col2, header_col3 = st.columns([3, 1.5, 1.5])
+                  with header_col1:
+                    st.markdown("**Parameter**")
+                  with header_col2:
+                    st.markdown("**Original Value**")
+                  with header_col3:
+                    st.markdown("**Your Value**")
                   for x in st.session_state.input_defaults_df:
-                    subcol1, subcol2 = st.columns([3, 1])
-                    with subcol1:
-                      st.write(f"{x}:\n" + formatter(x, st.session_state.input_defaults_df[x], False))
-                    with subcol2:
-                      st.session_state.user_defaults_df[x] = st.number_input(label=f"defaults", value=st.session_state.input_defaults_df[x], key=f"defaults_{x}", label_visibility="collapsed", format="%.4f")  
+                    param_col1, param_col2, param_col3 = st.columns([3, 1.5, 1.5])
+                    
+                    with param_col1:
+                      st.markdown(f"{x}")
+                    
+                    with param_col2:
+                      original_formatted = format_value_for_input(x, st.session_state.input_defaults_df[x])
+                      st.markdown(f"`{original_formatted}`")
+                    
+                    with param_col3:
+                      # Initialize session state for text input if not exists
+                      text_key = f"defaults_text_{x}"
+                      if text_key not in st.session_state:
+                        st.session_state[text_key] = format_value_for_input(x, st.session_state.input_defaults_df[x])
+                      
+                      # Text input for user-friendly format
+                      text_value = st.text_input(
+                        label=f"Edit {x}", 
+                        value=st.session_state[text_key],
+                        key=f"defaults_{x}", 
+                        label_visibility="collapsed",
+                        help=f"Enter your value for {x}",
+                        placeholder="Enter value..."
+                      )
+                      
+                      # Auto-format the input by adding appropriate signs
+                      formatted_value = auto_format_input(x, text_value)
+                      
+                      # Validate and parse the input
+                      is_valid, error_msg = validate_input_format(x, formatted_value)
+                      if not is_valid:
+                        st.error(error_msg)
+                      else:
+                        # Store the parsed numeric value and update the formatted text
+                        st.session_state.user_defaults_df[x] = parse_input_value(x, formatted_value)
+                        if formatted_value != text_value:
+                          st.session_state[text_key] = formatted_value
+                          st.rerun()
+                        else:
+                          st.session_state[text_key] = formatted_value  
             apply_changes = st.button("Calculate with Modified Values", key="apply_changes_button", use_container_width=True)
             if apply_changes:
                 st.toast("Calculating with modified values... This may take a moment.")
@@ -876,3 +1150,13 @@ if check_password():
           st.info(f"**Original File Status:** {original_status}")
         with col2:
           st.info(f"**Modified (User-Edited) Status:** {modified_status}")
+
+  footer_col1, footer_col2, footer_col3 = st.columns([1, 2, 1])
+  with footer_col2:
+    st.markdown("""
+    <div style="text-align: center; color: #6c757d; font-size: 14px; margin-top: 30px;">
+      <p style="margin-bottom: 0px;"><strong>Rapid BCA Analyzer</strong></p>
+      <a style="margin-bottom: 0px; text-decoration: none;" href="https://lernmoreconsulting.com">© 2025 LernMore Consulting</a>
+      <p>Secure • Fast • Accurate</p>
+    </div>
+    """, unsafe_allow_html=True)
