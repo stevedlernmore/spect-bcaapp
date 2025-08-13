@@ -124,11 +124,57 @@ def validate_input_format(name, input_str):
 
 def format_dataframe_for_display(df):
   display_df = df.copy()
+  
+  # Add blank columns for product line separation
+  if 'Metric' in display_df.columns:
+    # First, add a blank column after the Metric column
+    metric_col_idx = display_df.columns.get_loc('Metric')
+    display_df.insert(metric_col_idx + 1, ' ', '')
+    
+    # Get all original data columns (excluding Metric)
+    original_data_cols = [col for col in df.columns if col != 'Metric']
+    
+    # Add blank columns every 2 original data columns to separate product lines
+    blank_col_counter = 1
+    for i in range(2, len(original_data_cols), 2):  # Every 2 original data columns
+      # Find the current position of the column in the modified dataframe
+      target_col = original_data_cols[i]
+      current_col_idx = display_df.columns.get_loc(target_col)
+      blank_col_name = ' ' * (blank_col_counter + 1)  # Use multiple spaces for unique names
+      display_df.insert(current_col_idx, blank_col_name, '')
+      blank_col_counter += 1
+  
+  # Add blank rows after specific metrics
+  blank_row_triggers = ['Defect %', 'NET SALES', 'MARGIN %', 'SG&A', 'FACTORING %']
+  rows_to_insert = []
+  
+  # Find indices where we need to insert blank rows
+  for idx in display_df.index:
+    if 'Metric' in display_df.columns:
+      metric_value = str(display_df.loc[idx, 'Metric'])
+    else:
+      metric_value = str(idx)
+    
+    if any(trigger in metric_value for trigger in blank_row_triggers):
+      rows_to_insert.append(idx)
+  
+  # Insert blank rows (work backwards to maintain indices)
+  for row_idx in reversed(rows_to_insert):
+    # Create a blank row
+    blank_row = pd.Series([''] * len(display_df.columns), index=display_df.columns)
+    # Insert after the current row
+    display_df = pd.concat([
+      display_df.iloc[:display_df.index.get_loc(row_idx) + 1],
+      pd.DataFrame([blank_row]),
+      display_df.iloc[display_df.index.get_loc(row_idx) + 1:]
+    ], ignore_index=True)
+  
+  # Format the values
   for col in display_df.columns:
     for idx in display_df.index:
       value = display_df.loc[idx, col]
       if pd.isna(value) or value == '' or str(value).strip() == '':
-        display_df.loc[idx, col] = ""  # Set to empty string instead of NaN
+        display_df.loc[idx, col] = ""
         continue
       try:
         num_value = float(value)
@@ -163,6 +209,7 @@ def format_dataframe_for_display(df):
         else:
           display_df.loc[idx, col] = str(value)
   return display_df
+
 
 def to_excel_bytes(summary_df, defaults_df=None):
   output = BytesIO()
@@ -1042,10 +1089,11 @@ if check_password():
                 index=input_df.iloc[:,0],
                 columns=input_df.columns[1:,]
             )
+            print(result)
             result_with_metrics = result.reset_index()
             result_with_metrics.rename(columns={'index': 'Metric'}, inplace=True)
             st.dataframe(
-              format_dataframe_for_display(result),
+              format_dataframe_for_display(result_with_metrics),
               use_container_width=True,
               height=600
             )
