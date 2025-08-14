@@ -13,7 +13,7 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
   def getSales(DATA):
     values = DATA['Annual usage'] * DATA['NEW Invoice']
     total = values.sum()
-    total = total + (total * volume/100)
+    total = total + (total * volume)
     return total
 
   def getPerUnit(row, column):
@@ -213,7 +213,7 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
 
   print('Calculating QTY Gross...')
   gross = util.getSumGivenColumn('All', DATA, 'Annual usage')
-  output.loc[output['Metric'] == 'QTY Gross', 'New Cumulative'] = gross + (gross * volume/100)
+  output.loc[output['Metric'] == 'QTY Gross', 'New Cumulative'] = gross + (gross * volume)
 
   print('Calculating QTY Defect %...')
   output.loc[output['Metric'] == 'Defect %', 'New Cumulative'] = DEFAULTS.iloc[0]['Defect %']

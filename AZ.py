@@ -219,8 +219,8 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
   print('Calculation QTY Gross...')
   gross_FM = util.getSumGivenColumn('FM', DATA, 'L13 Sales')
   gross_SU = util.getSumGivenColumn('SU', DATA, 'L13 Sales')
-  output.loc[output['Metric'] == 'QTY Gross', 'FM Cumulative'] = gross_FM+(gross_FM*volume/100)
-  output.loc[output['Metric'] == 'QTY Gross', 'SU Cumulative'] = gross_SU+(gross_SU*volume/100)
+  output.loc[output['Metric'] == 'QTY Gross', 'FM Cumulative'] = gross_FM+(gross_FM*volume)
+  output.loc[output['Metric'] == 'QTY Gross', 'SU Cumulative'] = gross_SU+(gross_SU*volume)
 
   print('Calculation Defect Percent...')
   output.loc[output['Metric'] == 'Defect %', 'FM Cumulative'] = ASSUMPTIONS['Defect %'].loc['FM']
@@ -236,9 +236,9 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
 
   print('Calculation Sales...')
   FM_sales = util.getSumGivenColumn('FM', DATA, 'Total Sales')
-  FM_sales = FM_sales + (FM_sales * volume/100)
+  FM_sales = FM_sales + (FM_sales * volume)
   SU_sales = util.getSumGivenColumn('SU', DATA, 'Total Sales')
-  SU_sales = SU_sales + (SU_sales * volume/100)
+  SU_sales = SU_sales + (SU_sales * volume)
   output.loc[output['Metric'] == 'Sales', 'FM Cumulative'] = FM_sales
   output.loc[output['Metric'] == 'Sales', 'SU Cumulative'] = SU_sales
   output.loc[output['Metric'] == 'Sales', 'FM Per Unit'] = getPerUnit('Sales', 'FM Cumulative')
