@@ -53,7 +53,7 @@ def QTY_CALCULATIONS(PRODUCT_LINES, output, DATA, ASSUMPTIONS, volume):
   total_gross = 0
   for line in PRODUCT_LINES:
     gross = getSumGivenColumn(line, DATA, 'Qty')
-    output.loc['QTY Gross', f'{line} Cumulative'] = gross + (gross*volume/100)
+    output.loc['QTY Gross', f'{line} Cumulative'] = gross + (gross*volume)
     total_gross += output.loc['QTY Gross', f'{line} Cumulative']
     try:
       output.loc['Defect %', f'{line} Cumulative'] = ASSUMPTIONS.loc[line, 'Defect %']
@@ -112,7 +112,7 @@ def NET_SALES_CALCULATIONS(output, DATA, ASSUMPTIONS, NET_SALES_METRICS, PRODUCT
     elif metric not in DEFAULTS:
       for line in PRODUCT_LINES:
         temp_sale = getSumGivenColumn(line, DATA, metric)
-        output.loc[metric, f'{line} Cumulative'] = temp_sale + (temp_sale*volume/100)
+        output.loc[metric, f'{line} Cumulative'] = temp_sale + (temp_sale*volume)
         total_metric += output.loc[metric, f'{line} Cumulative']
         output.loc[metric, f'{line} Per Unit'] = getPerUnit(metric, f'{line} Cumulative', output)
     else:
