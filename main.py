@@ -1038,7 +1038,7 @@ if check_password():
             if 0 - volume < 0:
               description = f"{volume*100}% increase"
             else:
-              description = f"{volume}% decrease"
+              description = f"{volume*100}% decrease"
             changes.append({
               'Parameter': f"QTY Volume",
               'Original Value': 0,
