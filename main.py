@@ -24,40 +24,34 @@ def format_value_for_input(name, value):
     """Format a value for display in text input based on its type"""
     if value is None:
         return ""
-    
     if 'per unit' in name.lower() or 'cumulative' in name.lower() or 'big' in name.lower() or \
-       'shipping' in name.lower() or 'return allowance' in name.lower() or 'pallets' in name.lower() or \
+       'shipping' in name.lower() or 'pallets' in name.lower() or \
        'delivery' in name.lower() or 'inspect return' in name.lower() or 'rebox' in name.lower() or \
        'labor' in name.lower() or 'overhead' in name.lower() or 'special marketing' in name.lower():
-        if 'alliance' in name.lower():
-            return f"{value*100:.3f}%"
-        else:
-            return f"${value:.2f}"
+      if 'alliance' in name.lower():
+          return f"{value*100:.2f}%"
+      else:
+          return f"${value:.2f}"
     elif 'qty' in name.lower():
         return f"{value}"
     else:
-        return f"{value*100:.3f}%"
+        return f"{value*100:.2f}%"
 
 def parse_input_value(name, input_str):
     """Parse a formatted input string back to numeric value"""
     if not input_str or input_str.strip() == "":
         return 0.0
     
-    # Remove any extra whitespace
     input_str = input_str.strip()
     
     try:
-        # Check if it's a percentage
         if input_str.endswith('%'):
-            # Remove % and convert to decimal
             numeric_part = input_str[:-1].strip()
             value = float(numeric_part) / 100.0
         elif input_str.startswith('$'):
-            # Remove $ and parse as dollar amount
             numeric_part = input_str[1:].strip()
             value = float(numeric_part)
         else:
-            # It's a regular number (like quantities)
             value = float(input_str)
         
         return value
@@ -76,7 +70,6 @@ def auto_format_input(name, input_str):
     if input_str.endswith('%') or input_str.startswith('$'):
         return input_str
     
-    # Check field type and add appropriate formatting
     is_percentage_field = not ('per unit' in name.lower() or 'cumulative' in name.lower() or 
                               'big' in name.lower() or 'shipping' in name.lower() or 
                               'return allowance' in name.lower() or 'pallets' in name.lower() or 
@@ -86,38 +79,30 @@ def auto_format_input(name, input_str):
                               'qty' in name.lower())
     
     is_dollar_field = ('per unit' in name.lower() or 'cumulative' in name.lower() or 
-                      'big' in name.lower() or 'shipping' in name.lower() or 
-                      'return allowance' in name.lower() or 'pallets' in name.lower() or 
+                      'big' in name.lower() or 'shipping' in name.lower()  or 'pallets' in name.lower() or 
                       'delivery' in name.lower() or 'inspect return' in name.lower() or 
                       'rebox' in name.lower() or 'labor' in name.lower() or 
-                      'overhead' in name.lower() or 'special marketing' in name.lower()) and \
-                     not 'alliance' in name.lower()
-    
-    is_quantity_field = 'qty' in name.lower()
-    
+                      'overhead' in name.lower() or 'special marketing' in name.lower()) and not 'alliance' in name.lower()
+
     try:
-        # Try to parse as number first
         float(input_str)
         
-        # Add appropriate formatting
         if is_percentage_field:
             return f"{input_str}%"
         elif is_dollar_field:
             return f"${input_str}"
-        else:  # quantity field
+        else: 
             return input_str
     except ValueError:
-        # If it's not a valid number, return as-is
         return input_str
 
 def validate_input_format(name, input_str):
     """Validate that input format is correct for the field type"""
     if not input_str or input_str.strip() == "":
         return True, ""
-    
-    # Try to parse the value
+
     try:
-        parse_input_value(name, input_str)
+        auto_format_input(name, input_str)
         return True, ""
     except:
         return False, "Invalid number format"
@@ -896,8 +881,7 @@ if check_password():
                     
                     with param_col3:
                       text_key = f"assumption_text_{x}"
-                      if text_key not in st.session_state:
-                        st.session_state[text_key] = format_value_for_input(x, st.session_state.input_assumptions_df[x])
+                      st.session_state[text_key] = format_value_for_input(x, st.session_state.input_assumptions_df[x])
                       
                       text_value = st.text_input(
                         label=f"Edit {x}", 
@@ -907,21 +891,14 @@ if check_password():
                         help=f"Enter your value for {x}",
                         placeholder="Enter value..."
                       )
-                      
+
                       formatted_value = auto_format_input(x, text_value)
-                      
-                      # Validate and parse the input
-                      is_valid, error_msg = validate_input_format(x, formatted_value)
-                      if not is_valid:
-                        st.error(error_msg)
+                      st.session_state.user_assumptions_df[x] = parse_input_value(x, formatted_value)
+                      if formatted_value != text_value:
+                        st.session_state[text_key] = formatted_value
+                        st.rerun()
                       else:
-                        # Store the parsed numeric value and update the formatted text
-                        st.session_state.user_assumptions_df[x] = parse_input_value(x, formatted_value)
-                        if formatted_value != text_value:
-                          st.session_state[text_key] = formatted_value
-                          st.rerun()
-                        else:
-                          st.session_state[text_key] = formatted_value
+                        st.session_state[text_key] = formatted_value
             with column2:
               st.markdown("#### Defaults")
               with st.expander("See Defaults", expanded=True):
@@ -940,7 +917,7 @@ if check_password():
                     param_col1, param_col2, param_col3 = st.columns([3, 1.5, 1.5])
                     
                     with param_col1:
-                      st.markdown(f"{x}")
+                      st.markdown(f"{x.replace('-', '')}")
                     
                     with param_col2:
                       original_formatted = format_value_for_input(x, st.session_state.input_defaults_df[x])
@@ -949,8 +926,7 @@ if check_password():
                     with param_col3:
                       # Initialize session state for text input if not exists
                       text_key = f"defaults_text_{x}"
-                      if text_key not in st.session_state:
-                        st.session_state[text_key] = format_value_for_input(x, st.session_state.input_defaults_df[x])
+                      st.session_state[text_key] = format_value_for_input(x, st.session_state.input_defaults_df[x])
                       
                       # Text input for user-friendly format
                       text_value = st.text_input(
@@ -962,10 +938,8 @@ if check_password():
                         placeholder="Enter value..."
                       )
                       
-                      # Auto-format the input by adding appropriate signs
                       formatted_value = auto_format_input(x, text_value)
                       
-                      # Validate and parse the input
                       is_valid, error_msg = validate_input_format(x, formatted_value)
                       if not is_valid:
                         st.error(error_msg)
@@ -1062,7 +1036,7 @@ if check_password():
             })
           if volume != 0.0:
             if 0 - volume < 0:
-              description = f"{volume}% increase"
+              description = f"{volume*100}% increase"
             else:
               description = f"{volume}% decrease"
             changes.append({
@@ -1118,8 +1092,8 @@ if check_password():
                 "calculation_method": "Difference analysis (Modified - Original values)"
               }},
               "input_data": {{
-                "parameter_changes": {changes_df.to_csv(index=False) if file_type != "Amazon" else changes_df.to_string(index=False)},
-                "financial_impact_differences": {result_with_metrics.to_csv(index=False) if file_type != "Amazon" else result_with_metrics.to_string(index=False)}
+                "parameter_changes": {changes_df.to_string(index=False)},
+                "financial_impact_differences": {result_with_metrics.to_string(index=False)}
               }},
               "analysis_requirements": {{
                 "executive_summary": {{

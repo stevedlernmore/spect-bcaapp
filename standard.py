@@ -2,6 +2,7 @@ import pandas as pd
 import utility_library as util
 
 def getSummary(file, user_defaults_df=None, volume=0.0):
+  print(user_defaults_df)
   FORMAT = pd.read_excel(file, sheet_name="Format", index_col="METRIC")
   all_lines = FORMAT.loc['QTY Gross', 'Add All Lines']
   NET_SALES_METRICS, MARGIN_METRICS = util.GET_NETSALES_MARGIN_METRICS(FORMAT)
@@ -20,7 +21,9 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
     ASSUMPTIONS = pd.DataFrame()
     DEFAULTS = user_defaults_df
     for data in user_defaults_df:
-      for pline in PRODUCT_LINES:
+      product_lines = list(PRODUCT_LINES.copy())
+      product_lines.append('-')
+      for pline in product_lines:
         if pline in data:
           row, col = data.split(' ', 1)
           ASSUMPTIONS.at[row, col] = user_defaults_df[data]
@@ -45,7 +48,7 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
   output = util.QTY_CALCULATIONS(PRODUCT_LINES, output, DATA, ASSUMPTIONS, volume)
   output = util.NET_SALES_CALCULATIONS(output, DATA, ASSUMPTIONS, NET_SALES_METRICS, PRODUCT_LINES, DEFAULTS, volume)
   output = util.MARGIN_CALCULATIONS(PRODUCT_LINES, MARGIN_METRICS, output, DATA, DEFAULTS, FORMAT)
-  output = util.SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS)
+  output = util.SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, file)
 
   total_factoring = 0
   total_contribution_margin = 0
