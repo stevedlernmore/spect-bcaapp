@@ -205,8 +205,8 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
 
   print('Calculation QTY Gross...')
   gross_current = util.getSumGivenColumn('All', DATA, 'L12 Actual')
-  output.loc[output['Metric'] == 'QTY Gross', 'GTN/CGT Current Cumulative'] = gross_current + (gross_current * volume)
-  output.loc[output['Metric'] == 'QTY Gross', 'GTN/CGT Blended Cumulative'] = gross_current + (gross_current * volume)
+  output.loc[output['Metric'] == 'QTY Gross', 'GTN/CGT Current Cumulative'] = gross_current + (gross_current * volume/100)
+  output.loc[output['Metric'] == 'QTY Gross', 'GTN/CGT Blended Cumulative'] = gross_current + (gross_current * volume/100)
 
   print('Calculating Defect %...')
   output.loc[output['Metric'] == 'Defect %', 'GTN/CGT Current Cumulative'] = DEFECT_PERCENT
@@ -222,9 +222,9 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
 
   print('Calculating Sales...')
   current_sales = util.getSumGivenColumn('All', DATA, 'Total Sales (Currrent)')
-  current_sales = current_sales + (current_sales * volume)
+  current_sales = current_sales + (current_sales * volume/100)
   adjusted_sales = util.getSumGivenColumn('All', DATA, 'Total Sales (Adjusted) ')
-  adjusted_sales = adjusted_sales + (adjusted_sales * volume)
+  adjusted_sales = adjusted_sales + (adjusted_sales * volume/100)
   output.loc[output['Metric'] == 'Sales', 'GTN/CGT Current Cumulative'] = current_sales
   output.loc[output['Metric'] == 'Sales', 'GTN/CGT Blended Cumulative'] = adjusted_sales
   output.loc[output['Metric'] == 'Sales', 'GTN/CGT Current Per Unit'] = getPerUnit('Sales', 'GTN/CGT Current Cumulative')

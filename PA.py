@@ -174,12 +174,12 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
   Defect_column = 'Defect Count'
   print('Calculating Sum of QTY Gross and Defect for all lines...')
   gross = util.getSumGivenColumn('All', DATA, QTY_column)
-  output.loc[output['Metric'] == 'QTY Gross', 'All Lines Cumulative'] = gross + (gross * volume)
+  output.loc[output['Metric'] == 'QTY Gross', 'All Lines Cumulative'] = gross + (gross * volume/100)
   output.loc[output['Metric'] == 'QTY Defect', 'All Lines Cumulative'] = util.getSumGivenColumn('All', DATA, Defect_column)
   print('Calculating Sum of QTY Gross and Defect for each Pline...')
   for line in Plines:
     gross_pline = util.getSumGivenColumn(line, DATA, QTY_column)
-    output.loc[output['Metric'] == 'QTY Gross', f'{line} Cumulative'] = gross_pline + (gross_pline * volume)
+    output.loc[output['Metric'] == 'QTY Gross', f'{line} Cumulative'] = gross_pline + (gross_pline * volume/100)
     output.loc[output['Metric'] == 'QTY Defect', f'{line} Cumulative'] = util.getSumGivenColumn(line, DATA, Defect_column)
   output = util.getQTYTotalAndDefect(output)
 
@@ -216,7 +216,7 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
   print('Calculating data for Net Sales for each Pline...')
   for line in Plines:
     sales = util.getSumGivenColumn(line, DATA, Sales_column)
-    sales = sales + (sales * volume)
+    sales = sales + (sales * volume/100)
     output.loc[output['Metric'] == 'Sales', f'{line} Cumulative'] = sales
     output.loc[output['Metric'] == 'Rebate', f'{line} Cumulative'] = util.getSumGivenColumn(line, DATA, Rebate_column)*-1
     output.loc[output['Metric'] == 'Logistic Rebate N/A', f'{line} Cumulative'] = util.getSumGivenColumn(line, DATA, Logistic_Rebate_column)
