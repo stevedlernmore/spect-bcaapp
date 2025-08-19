@@ -195,11 +195,146 @@ def format_dataframe_for_display(df):
           display_df.loc[idx, col] = str(value)
   return display_df
 
-
-def to_excel_bytes(summary_df, defaults_df=None):
+def to_excel_bytes(summary_df, defaults_df=None, format_for_export=False):
   output = BytesIO()
   with pd.ExcelWriter(output, engine='openpyxl') as writer:
-    summary_df.to_excel(writer, index=False, sheet_name='Summary')
+    if format_for_export:
+      export_df = summary_df.copy()
+      
+      if 'Metric' in export_df.columns:
+        metric_col_idx = export_df.columns.get_loc('Metric')
+        export_df.insert(metric_col_idx + 1, ' ', '')
+        
+        original_data_cols = [col for col in summary_df.columns if col != 'Metric']
+        
+        blank_col_counter = 1
+        for i in range(2, len(original_data_cols), 2):
+          target_col = original_data_cols[i]
+          current_col_idx = export_df.columns.get_loc(target_col)
+          blank_col_name = ' ' * (blank_col_counter + 1)
+          export_df.insert(current_col_idx, blank_col_name, '')
+          blank_col_counter += 1
+      
+      blank_row_triggers = ['Defect %', 'NET SALES', 'MARGIN %', 'SG&A', 'FACTORING %']
+      rows_to_insert = []
+      
+      for idx in export_df.index:
+        if 'Metric' in export_df.columns:
+          metric_value = str(export_df.loc[idx, 'Metric'])
+        else:
+          metric_value = str(idx)
+        
+        if any(trigger in metric_value for trigger in blank_row_triggers):
+          rows_to_insert.append(idx)
+      
+      for row_idx in reversed(rows_to_insert):
+        blank_row = pd.Series([''] * len(export_df.columns), index=export_df.columns)
+        export_df = pd.concat([
+          export_df.iloc[:export_df.index.get_loc(row_idx) + 1],
+          pd.DataFrame([blank_row]),
+          export_df.iloc[export_df.index.get_loc(row_idx) + 1:]
+        ], ignore_index=True)
+      
+      export_df.to_excel(writer, index=False, sheet_name='Summary')
+      
+      worksheet = writer.sheets['Summary']
+      
+      from openpyxl.styles import Font, Alignment, Border, Side
+      from openpyxl.utils import get_column_letter
+      
+      worksheet.insert_rows(1)
+      
+      data_cols = [col for col in export_df.columns if col != 'Metric' and not col.strip() == '']
+      product_lines = {}
+      
+      for i, col in enumerate(data_cols):
+        if 'Cumulative' in col or 'Per Unit' in col:
+          if 'Cumulative' in col:
+            product_name = col.replace(' Cumulative', '').strip()
+          else:
+            product_name = col.replace(' Per Unit', '').strip()
+          
+          if product_name not in product_lines:
+            product_lines[product_name] = []
+          
+          col_pos = export_df.columns.get_loc(col) + 1
+          product_lines[product_name].append(col_pos)
+      
+      for product_name, col_positions in product_lines.items():
+        if len(col_positions) >= 2:
+          start_col = min(col_positions)
+          end_col = max(col_positions)
+          
+          start_cell = f"{get_column_letter(start_col)}1"
+          end_cell = f"{get_column_letter(end_col)}1"
+          worksheet.merge_cells(f"{start_cell}:{end_cell}")
+          worksheet[start_cell].alignment = Alignment(horizontal='center', vertical='center')
+          worksheet[start_cell] = product_name
+          worksheet[start_cell].border = Border(
+              left=Side(style='thin'),
+              right=Side(style='thin'),
+              top=Side(style='thin'),
+              bottom=Side(style='thin')
+          )
+          worksheet[start_cell].font = Font(bold=True, size=12)
+      
+      for col_idx, col_name in enumerate(export_df.columns, 1):
+        cell = worksheet.cell(row=2, column=col_idx)
+        if 'Cumulative' in col_name:
+          cell.value = 'Cumulative'
+        elif 'Per Unit' in col_name:
+          cell.value = 'Per Unit'
+        elif col_name == 'Metric':
+          cell.value = 'Metric'
+        else:
+          cell.value = col_name
+        cell.font = Font(bold=True)
+      
+      thin_border = Border(
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+      )
+      
+      max_row = worksheet.max_row
+      max_col = worksheet.max_column
+      
+      for row in range(1, max_row + 1):
+        for col in range(1, max_col + 1):
+          cell = worksheet.cell(row=row, column=col)
+          if cell.value and (worksheet.cell(row=row, column=1).value == 'QTY Total'
+            or worksheet.cell(row=row, column=1).value == 'NET SALES'
+            or worksheet.cell(row=row, column=1).value == 'TOTAL VARIABLE COST'
+            or worksheet.cell(row=row, column=1).value == 'MARGIN'
+            or worksheet.cell(row=row, column=1).value == 'SG&A'
+            or worksheet.cell(row=row, column=1).value == 'Contribution Margin'):
+            cell.border = thin_border
+          if row <= 2:
+            cell.font = Font(bold=True)
+          if (worksheet.cell(row=row, column=1).value == 'QTY Total' or 
+              worksheet.cell(row=row, column=1).value == 'Defect %' or
+              worksheet.cell(row=row, column=1).value == 'NET SALES' or
+              worksheet.cell(row=row, column=1).value == 'MARGIN' or 
+              worksheet.cell(row=row, column=1).value == 'MARGIN %' or 
+              cell.value == 'SG&A' or 
+              cell.value == 'FACTORING %' or
+              worksheet.cell(row=row, column=1).value == 'Contribution Margin' or
+              worksheet.cell(row=row, column=1).value == 'Contribution Margin %'):
+            cell.font = Font(bold=True)
+      for column in worksheet.columns:
+        max_length = 0
+        column_letter = get_column_letter(column[0].column)
+        for cell in column:
+          try:
+            if len(str(cell.value)) > max_length:
+              max_length = len(str(cell.value))
+          except:
+            pass
+        adjusted_width = min(max_length + 2, 50)
+        worksheet.column_dimensions[column_letter].width = adjusted_width
+      
+    else:
+      summary_df.to_excel(writer, index=False, sheet_name='Summary')
+    
     if defaults_df is not None:
       defaults_df.to_excel(writer, sheet_name='Defaults & Assumptions')
   
@@ -785,7 +920,6 @@ if check_password():
           except Exception as e:
             st.error(f"❌ An error occurred: {str(e)}")
         def formatter(name, value, defaults=False):
-          print(name, value)
           if 'per unit' in name.lower() or 'cumulative' in name.lower() or 'big' in name.lower() or 'shipping' in name.lower() or 'return allowance' in name.lower() or 'pallets' in name.lower() or 'delivery' in name.lower() or 'inspect return' in name.lower() or 'rebox' in name.lower() or 'labor' in name.lower() or 'overhead' in name.lower() or 'special marketing' in name.lower():
             if defaults:
               value = f"% {value*100:.3f}"
@@ -815,8 +949,13 @@ if check_password():
             for x in st.session_state.input_defaults_df:
               st.write(f"{x}:", formatter(x, st.session_state.input_defaults_df[x], True))
         else:
-          if st.session_state.input_defaults_df is not None or st.session_state.input_assumptions_df is not None: 
-            st.subheader(f'{file_type} Business Case Analysis')
+          if st.session_state.input_defaults_df is not None or st.session_state.input_assumptions_df is not None:
+            try:
+              header, date = input_file.name.split(".")[0].split("-")
+            except:
+              header, date = "Unformatted File Name", "Unknown"
+            st.subheader(f'Business Case Analysis: {header}')
+            st.write(f"**Date:** {date}")
             st.write('You can adjust the following parameters to see their impact on the analysis:')
             qty_col1, qty_col2, qty_col3 = st.columns([1,2,1])
             with qty_col2:
@@ -972,7 +1111,7 @@ if check_password():
           })
           st.download_button(
             label="Download Summary",
-            data=to_excel_bytes(st.session_state.input_summary_df, df),
+            data=to_excel_bytes(st.session_state.input_summary_df, df, format_for_export=True),
             file_name=file_name,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key="download_input_summary"
@@ -1063,7 +1202,6 @@ if check_password():
                 index=input_df.iloc[:,0],
                 columns=input_df.columns[1:,]
             )
-            print(result)
             result_with_metrics = result.reset_index()
             result_with_metrics.rename(columns={'index': 'Metric'}, inplace=True)
             st.dataframe(
