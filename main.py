@@ -270,12 +270,6 @@ def to_excel_bytes(summary_df, defaults_df=None, format_for_export=False):
           worksheet.merge_cells(f"{start_cell}:{end_cell}")
           worksheet[start_cell].alignment = Alignment(horizontal='center', vertical='center')
           worksheet[start_cell] = product_name
-          worksheet[start_cell].border = Border(
-              left=Side(style='thin'),
-              right=Side(style='thin'),
-              top=Side(style='thin'),
-              bottom=Side(style='thin')
-          )
           worksheet[start_cell].font = Font(bold=True, size=12)
       
       for col_idx, col_name in enumerate(export_df.columns, 1):
@@ -301,7 +295,7 @@ def to_excel_bytes(summary_df, defaults_df=None, format_for_export=False):
       for row in range(1, max_row + 1):
         for col in range(1, max_col + 1):
           cell = worksheet.cell(row=row, column=col)
-          if cell.value and (worksheet.cell(row=row, column=1).value == 'QTY Total'
+          if str(cell.value).strip() != "" and (worksheet.cell(row=row, column=1).value == 'QTY Total'
             or worksheet.cell(row=row, column=1).value == 'NET SALES'
             or worksheet.cell(row=row, column=1).value == 'TOTAL VARIABLE COST'
             or worksheet.cell(row=row, column=1).value == 'MARGIN'

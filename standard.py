@@ -2,7 +2,6 @@ import pandas as pd
 import utility_library as util
 
 def getSummary(file, user_defaults_df=None, volume=0.0):
-  print(user_defaults_df)
   FORMAT = pd.read_excel(file, sheet_name="Format", index_col="METRIC")
   all_lines = FORMAT.loc['QTY Gross', 'Add All Lines']
   NET_SALES_METRICS, MARGIN_METRICS = util.GET_NETSALES_MARGIN_METRICS(FORMAT)
@@ -75,7 +74,7 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
   assumptions_list = {}
   for column in ASSUMPTIONS.columns:
     for index in ASSUMPTIONS.index:
-      if 'Unnamed' in column:
+      if 'Unnamed' in column or index not in PRODUCT_LINES:
         continue
       parameter_name = f"{index} {column}"
       value = ASSUMPTIONS.loc[index, column]
@@ -83,5 +82,5 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
 
   if all_lines != True:
     output = output.drop(['All Lines Cumulative', 'All Lines Per Unit'], axis=1)
-
+  print(f'assumptions_list: {assumptions_list}')
   return output.reset_index().rename(columns={'METRIC': 'Metric'}), DEFAULTS, assumptions_list
