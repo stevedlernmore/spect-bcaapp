@@ -243,7 +243,10 @@ def to_excel_bytes(summary_df, defaults_df=None, format_for_export=False):
       from openpyxl.utils import get_column_letter
       
       worksheet.insert_rows(1)
-      
+      for row in worksheet.iter_rows():
+        for cell in row:
+          cell.border = Border()
+
       data_cols = [col for col in export_df.columns if col != 'Metric' and not col.strip() == '']
       product_lines = {}
       
@@ -259,7 +262,9 @@ def to_excel_bytes(summary_df, defaults_df=None, format_for_export=False):
           
           col_pos = export_df.columns.get_loc(col) + 1
           product_lines[product_name].append(col_pos)
-      
+
+      full_border = Border(top=Side(style='thin'), bottom=Side(style='thin'), left=Side(style='thin'), right=Side(style='thin'))
+
       for product_name, col_positions in product_lines.items():
         if len(col_positions) >= 2:
           start_col = min(col_positions)
@@ -270,16 +275,21 @@ def to_excel_bytes(summary_df, defaults_df=None, format_for_export=False):
           worksheet.merge_cells(f"{start_cell}:{end_cell}")
           worksheet[start_cell].alignment = Alignment(horizontal='center', vertical='center')
           worksheet[start_cell] = product_name
+          worksheet[start_cell].border = full_border
+          worksheet[end_cell].border = full_border
           worksheet[start_cell].font = Font(bold=True, size=12)
       
       for col_idx, col_name in enumerate(export_df.columns, 1):
         cell = worksheet.cell(row=2, column=col_idx)
         if 'Cumulative' in col_name:
           cell.value = 'Cumulative'
+          cell.border = full_border
         elif 'Per Unit' in col_name:
           cell.value = 'Per Unit'
+          cell.border = full_border
         elif col_name == 'Metric':
           cell.value = 'Metric'
+          cell.border = full_border
         else:
           cell.value = col_name
         cell.font = Font(bold=True)
@@ -314,6 +324,20 @@ def to_excel_bytes(summary_df, defaults_df=None, format_for_export=False):
               worksheet.cell(row=row, column=1).value == 'Contribution Margin' or
               worksheet.cell(row=row, column=1).value == 'Contribution Margin %'):
             cell.font = Font(bold=True)
+          try:
+            float(cell.value)
+            if (worksheet.cell(row=row, column=1).value == 'Defect %' or
+                worksheet.cell(row=row, column=1).value == 'MARGIN %' or
+                worksheet.cell(row=row, column=1).value == 'Contribution Margin %'):
+              cell.number_format = '0.00%'
+            elif (worksheet.cell(row=row, column=1).value == 'QTY Gross' or
+                worksheet.cell(row=row, column=1).value == 'QTY Defect' or
+                worksheet.cell(row=row, column=1).value == 'QTY Total'):
+              cell.number_format = '#,##0'
+            else:
+              cell.number_format = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)'
+          except:
+            pass
       for column in worksheet.columns:
         max_length = 0
         column_letter = get_column_letter(column[0].column)
