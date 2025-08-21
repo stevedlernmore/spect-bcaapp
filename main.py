@@ -1037,8 +1037,52 @@ if check_password():
               with st.expander("See Defaults", expanded=True):
                 if st.session_state.input_defaults_df is None:
                   st.write("No defaults found in the original file.")
+                elif file_type == "Standard BCA":
+                  st.session_state.lines = {n.split(' ', 1)[0] for n in st.session_state.input_defaults_df}
+                  st.session_state.metrics = {n.split(' ', 1)[1] for n in st.session_state.input_defaults_df}
+                  st.session_state.selected = st.selectbox("Select product line", options=st.session_state.lines)
+                  header_col1, header_col2, header_col3 = st.columns([3, 1.5, 1.5])
+                  with header_col1:
+                    st.markdown("**Parameter**")
+                  with header_col2:
+                    st.markdown("**Original Value**")
+                  with header_col3:
+                    st.markdown("**Your Value**")
+                  for x in st.session_state.metrics:
+                    param_col1, param_col2, param_col3 = st.columns([3, 1.5, 1.5])
+                    
+                    with param_col1:
+                      st.markdown(f'{x}')
+                    
+                    with param_col2:
+                      original_formatted = format_value_for_input(f'{st.session_state.selected} {x}', st.session_state.input_defaults_df[f'{st.session_state.selected} {x}'])
+                      st.markdown(f"`{original_formatted}`")
+                    
+                    with param_col3:
+                      text_key = f"defaults_text_{st.session_state.selected} {x}"
+                      st.session_state[text_key] = format_value_for_input(f'{st.session_state.selected} {x}', st.session_state.user_defaults_df[f'{st.session_state.selected} {x}'])
+                      text_value = st.text_input(
+                        label=f"Edit f'{st.session_state.selected} {x}'", 
+                        value=st.session_state[text_key],
+                        key=f"defaults_{st.session_state.selected} {x}", 
+                        label_visibility="collapsed",
+                        help=f"Enter your value for f'{st.session_state.selected} {x}'",
+                        placeholder="Enter value..."
+                      )
+
+                      formatted_value = auto_format_input(f'{st.session_state.selected} {x}', text_value)
+                      
+                      is_valid, error_msg = validate_input_format(f'{st.session_state.selected} {x}', formatted_value)
+                      if not is_valid:
+                        st.error(error_msg)
+                      else:
+                        st.session_state.user_defaults_df[f'{st.session_state.selected} {x}'] = parse_input_value(f'{st.session_state.selected} {x}', formatted_value)
+                        if formatted_value != text_value:
+                          st.session_state[text_key] = formatted_value
+                          st.rerun()
+                        else:
+                          st.session_state[text_key] = formatted_value  
                 else:
-                  # Create column headers
                   header_col1, header_col2, header_col3 = st.columns([3, 1.5, 1.5])
                   with header_col1:
                     st.markdown("**Parameter**")
@@ -1057,11 +1101,9 @@ if check_password():
                       st.markdown(f"`{original_formatted}`")
                     
                     with param_col3:
-                      # Initialize session state for text input if not exists
                       text_key = f"defaults_text_{x}"
                       st.session_state[text_key] = format_value_for_input(x, st.session_state.input_defaults_df[x])
                       
-                      # Text input for user-friendly format
                       text_value = st.text_input(
                         label=f"Edit {x}", 
                         value=st.session_state[text_key],
@@ -1077,7 +1119,6 @@ if check_password():
                       if not is_valid:
                         st.error(error_msg)
                       else:
-                        # Store the parsed numeric value and update the formatted text
                         st.session_state.user_defaults_df[x] = parse_input_value(x, formatted_value)
                         if formatted_value != text_value:
                           st.session_state[text_key] = formatted_value
