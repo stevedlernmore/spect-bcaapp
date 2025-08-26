@@ -983,11 +983,9 @@ if check_password():
                 with column1:
                   st.write('Volume Percentage Change:', formatter('Volume Percentage Change', 0.0))
                 with column2:
-                  # Initialize session state for volume text input if not exists
                   if "volume_text" not in st.session_state:
                     st.session_state.volume_text = "0.0%"
                   
-                  # Text input for volume percentage
                   volume_text = st.text_input(
                     label="Volume Percentage Change", 
                     value=st.session_state.volume_text,
@@ -996,10 +994,8 @@ if check_password():
                     help="Adjust the volume percentage to see how it affects the analysis (e.g., 5.0% for 5% increase)"
                   )
                   
-                  # Auto-format the volume input
                   formatted_volume = auto_format_input("Volume Percentage Change", volume_text)
                   
-                  # Validate and parse volume input
                   is_valid, error_msg = validate_input_format("Volume Percentage Change", formatted_volume)
                   if not is_valid:
                     st.error(error_msg)
@@ -1018,7 +1014,6 @@ if check_password():
                 if st.session_state.input_assumptions_df is None:
                   st.write("No assumptions found in the original file.")
                 else:
-                  # Create column headers
                   header_col1, header_col2, header_col3 = st.columns([3, 1.5, 1.5])
                   with header_col1:
                     st.markdown("**Parameter**")

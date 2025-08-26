@@ -96,7 +96,6 @@ def GET_NETSALES_MARGIN_METRICS(FORMAT):
 
   return net_sales_metrics, margin_metrics
 
-# STANDARD
 def NET_SALES_CALCULATIONS(output, DATA, ASSUMPTIONS, NET_SALES_METRICS, PRODUCT_LINES, DEFAULTS, volume):
   for metric in NET_SALES_METRICS:
     total_metric = 0

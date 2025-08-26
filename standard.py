@@ -27,13 +27,12 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
           row, col = data.split(' ', 1)
           ASSUMPTIONS.at[row, col] = user_defaults_df[data]
   else:
-    ASSUMPTIONS = pd.read_excel(file, sheet_name="Defaults & Assumptions", index_col="P Line")
+    ASSUMPTIONS = pd.read_excel(file, sheet_name="Defaults & Assumptions", index_col="P Line").fillna(0)
     DEFAULTS = {}
     for metric in FORMAT.index:
       if(pd.notna(FORMAT.loc[metric].iloc[0])):
         if "Tariffs" not in metric: 
           DEFAULTS[metric] = FORMAT.loc[metric].iloc[0]
-
   columns = [
     'All Lines Cumulative',
     'All Lines Per Unit'
