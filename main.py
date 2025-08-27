@@ -1356,7 +1356,7 @@ if check_password():
             file_name = f'{st.session_state.input_file.name.split(".")[0]}_comparison.xlsx'
             st.download_button(
               label="Download Summary",
-              data=to_excel_bytes(result_with_metrics, defaults_df),
+              data=to_excel_bytes(result_with_metrics, defaults_df, st.session_state.lines, st.session_state.metrics, format_for_export=True),
               file_name=file_name,
               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
               key="download_comparison"
