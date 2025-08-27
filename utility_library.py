@@ -103,9 +103,9 @@ def NET_SALES_CALCULATIONS(output, DATA, ASSUMPTIONS, NET_SALES_METRICS, PRODUCT
     if metric == 'Defect':
       for line in PRODUCT_LINES:
         try:
-          output.loc[metric, f'{line} Cumulative'] = output.loc['Sales', f'{line} Cumulative'] * ASSUMPTIONS.loc[line, 'Defect %']
+          output.loc[metric, f'{line} Cumulative'] = output.loc['Sales', f'{line} Cumulative'] * ASSUMPTIONS.loc[line, 'Defect %'] * -1
         except:
-          output.loc[metric, f'{line} Cumulative'] = output.loc['Sales', f'{line} Cumulative'] * ASSUMPTIONS.loc['-', 'Defect %']
+          output.loc[metric, f'{line} Cumulative'] = output.loc['Sales', f'{line} Cumulative'] * ASSUMPTIONS.loc['-', 'Defect %'] * -1
         total_metric += output.loc[metric, f'{line} Cumulative']
         output.loc[metric, f'{line} Per Unit'] = getPerUnit(metric, f'{line} Cumulative', output)
     elif metric not in DEFAULTS:

@@ -110,30 +110,23 @@ def validate_input_format(name, input_str):
 def format_dataframe_for_display(df):
   display_df = df.copy()
   
-  # Add blank columns for product line separation
   if 'Metric' in display_df.columns:
-    # First, add a blank column after the Metric column
     metric_col_idx = display_df.columns.get_loc('Metric')
     display_df.insert(metric_col_idx + 1, ' ', '')
     
-    # Get all original data columns (excluding Metric)
     original_data_cols = [col for col in df.columns if col != 'Metric']
     
-    # Add blank columns every 2 original data columns to separate product lines
     blank_col_counter = 1
-    for i in range(2, len(original_data_cols), 2):  # Every 2 original data columns
-      # Find the current position of the column in the modified dataframe
+    for i in range(2, len(original_data_cols), 2):
       target_col = original_data_cols[i]
       current_col_idx = display_df.columns.get_loc(target_col)
-      blank_col_name = ' ' * (blank_col_counter + 1)  # Use multiple spaces for unique names
+      blank_col_name = ' ' * (blank_col_counter + 1)
       display_df.insert(current_col_idx, blank_col_name, '')
       blank_col_counter += 1
   
-  # Add blank rows after specific metrics
   blank_row_triggers = ['Defect %', 'NET SALES', 'MARGIN %', 'SG&A', 'FACTORING %']
   rows_to_insert = []
   
-  # Find indices where we need to insert blank rows
   for idx in display_df.index:
     if 'Metric' in display_df.columns:
       metric_value = str(display_df.loc[idx, 'Metric'])
@@ -143,18 +136,14 @@ def format_dataframe_for_display(df):
     if any(trigger in metric_value for trigger in blank_row_triggers):
       rows_to_insert.append(idx)
   
-  # Insert blank rows (work backwards to maintain indices)
   for row_idx in reversed(rows_to_insert):
-    # Create a blank row
     blank_row = pd.Series([''] * len(display_df.columns), index=display_df.columns)
-    # Insert after the current row
     display_df = pd.concat([
       display_df.iloc[:display_df.index.get_loc(row_idx) + 1],
       pd.DataFrame([blank_row]),
       display_df.iloc[display_df.index.get_loc(row_idx) + 1:]
     ], ignore_index=True)
   
-  # Format the values
   for col in display_df.columns:
     for idx in display_df.index:
       value = display_df.loc[idx, col]
@@ -195,7 +184,7 @@ def format_dataframe_for_display(df):
           display_df.loc[idx, col] = str(value)
   return display_df
 
-def to_excel_bytes(summary_df, defaults_df=None, format_for_export=False):
+def to_excel_bytes(summary_df, defaults_df=None, plines=None, metrics=None, format_for_export=False):
   output = BytesIO()
   with pd.ExcelWriter(output, engine='openpyxl') as writer:
     if format_for_export:
@@ -304,6 +293,9 @@ def to_excel_bytes(summary_df, defaults_df=None, format_for_export=False):
       
       for row in range(1, max_row + 1):
         for col in range(1, max_col + 1):
+          if col == 2 and worksheet.cell(row=row, column=1).value in defaults_df.index:
+            worksheet.cell(row=row, column=col).value = defaults_df.loc[worksheet.cell(row=row, column=1).value].iloc[0]
+            worksheet.cell(row=row, column=col).alignment = Alignment(horizontal='center')
           cell = worksheet.cell(row=row, column=col)
           if str(cell.value).strip() != "" and (worksheet.cell(row=row, column=1).value == 'QTY Total'
             or worksheet.cell(row=row, column=1).value == 'NET SALES'
@@ -328,7 +320,7 @@ def to_excel_bytes(summary_df, defaults_df=None, format_for_export=False):
             float(cell.value)
             if (worksheet.cell(row=row, column=1).value == 'Defect %' or
                 worksheet.cell(row=row, column=1).value == 'MARGIN %' or
-                worksheet.cell(row=row, column=1).value == 'Contribution Margin %'):
+                worksheet.cell(row=row, column=1).value == 'Contribution Margin %' or col == 2):
               cell.number_format = '0.00%'
             elif (worksheet.cell(row=row, column=1).value == 'QTY Gross' or
                 worksheet.cell(row=row, column=1).value == 'QTY Defect' or
@@ -349,13 +341,39 @@ def to_excel_bytes(summary_df, defaults_df=None, format_for_export=False):
             pass
         adjusted_width = min(max_length + 2, 50)
         worksheet.column_dimensions[column_letter].width = adjusted_width
-      
+      worksheet.column_dimensions['B'].width = 10
     else:
       summary_df.to_excel(writer, index=False, sheet_name='Summary')
     
     if defaults_df is not None:
-      defaults_df.to_excel(writer, sheet_name='Defaults & Assumptions')
-  
+      new_df = pd.DataFrame(columns=['Product Lines'] + [metric for metric in metrics][::-1])
+      new_df['Product Lines'] = [lines for lines in plines]
+      for line in plines:
+        for metric in metrics:
+          new_df.loc[new_df['Product Lines'] == line, metric] = defaults_df.loc[f'{line} {metric}'].iloc[0]
+      new_df.to_excel(writer, sheet_name='Defaults & Assumptions', index=False)
+      worksheet = writer.sheets['Defaults & Assumptions']
+      for row in worksheet.iter_rows():
+        for cell in row:
+          cell.border = Border()
+      for i, col in enumerate(worksheet.iter_cols(min_row=1, max_row=1), 1):
+        header = col[0].value
+        if header:
+          width = min(len(str(header)) + 2, 50)
+          worksheet.column_dimensions[get_column_letter(i)].width = width
+      max_row = worksheet.max_row
+      max_col = worksheet.max_column
+
+      for row in range(1, max_row + 1):
+        for col in range(1, max_col + 1):
+          worksheet.cell(row=row, column=col).alignment = Alignment(horizontal='center', vertical='center')
+          worksheet.cell(row=row, column=col).border = thin_border
+          if worksheet.cell(row=1, column=col).value != 'Product Lines':
+            if worksheet.cell(row=1, column=col).value != 'Defect %':
+              worksheet.cell(row=row, column=col).number_format = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)'
+            else:
+              worksheet.cell(row=row, column=col).number_format = '0.00%'
+
   output.seek(0)
   return output.getvalue()
 
@@ -1165,7 +1183,7 @@ if check_password():
           })
           st.download_button(
             label="Download Summary",
-            data=to_excel_bytes(st.session_state.input_summary_df, df, format_for_export=True),
+            data=to_excel_bytes(st.session_state.input_summary_df, df, st.session_state.lines, st.session_state.metrics, format_for_export=True),
             file_name=file_name,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key="download_input_summary"
