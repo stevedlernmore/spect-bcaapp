@@ -1179,7 +1179,7 @@ if check_password():
             )
           file_name = f'{input_file.name.split(".")[0]}_export.xlsx'
           df = pd.DataFrame({
-            "Values":(st.session_state.user_assumptions_df or {}) | (st.session_state.user_defaults_df or {})
+            "Values":(st.session_state.input_assumptions_df or {}) | (st.session_state.input_defaults_df or {})
           })
           st.download_button(
             label="Download Summary",
