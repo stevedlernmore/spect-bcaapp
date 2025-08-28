@@ -254,9 +254,7 @@ def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, 
     
     SGA = 0
     for metric in SGA_METRICS:
-      print(f'Adding {metric}: {output.loc[metric, f"{line} Cumulative"]}')
       SGA += output.loc[metric, f'{line} Cumulative']
-    print('end')
     output.loc['SG&A', f'{line} Cumulative'] = SGA
     output.loc['SG&A', 'All Lines Cumulative'] += SGA
     output.loc['SG&A', f'{line} Per Unit'] = getPerUnit('SG&A', f'{line} Cumulative', output)

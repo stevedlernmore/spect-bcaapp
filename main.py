@@ -944,7 +944,7 @@ if check_password():
           st.session_state.input_file = input_file
           try:
             with st.spinner('Processing file... This may take a moment.'):
-              output, assumption_test, defaults_test = process_file(input_file)
+              output, assumption_test, defaults_test, st.session_state.format = process_file(input_file)
               st.session_state.input_summary_df = output
               st.session_state.input_defaults_df = defaults_test
               st.session_state.input_assumptions_df = assumption_test
@@ -1086,6 +1086,8 @@ if check_password():
                   with header_col3:
                     st.markdown("**Your Value**")
                   for x in st.session_state.metrics:
+                    if x not in st.session_state.format.index:
+                      continue
                     param_col1, param_col2, param_col3 = st.columns([3, 1.5, 1.5])
                     
                     with param_col1:
@@ -1165,7 +1167,7 @@ if check_password():
             apply_changes = st.button("Calculate with Modified Values", key="apply_changes_button", use_container_width=True)
             if apply_changes:
                 st.toast("Calculating with modified values... This may take a moment.")
-                output, assumption_test, defaults_test = process_file(input_file, (st.session_state.user_defaults_df or {}) | (st.session_state.user_assumptions_df or {}), volume)
+                output, assumption_test, defaults_test, format_test = process_file(input_file, (st.session_state.user_defaults_df or {}) | (st.session_state.user_assumptions_df or {}), volume)
                 st.toast("Calculation complete!")
                 st.session_state.user_summary_df = output
                 st.session_state.response = "Analysis in progress..."

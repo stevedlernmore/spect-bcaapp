@@ -73,5 +73,5 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
 
   if all_lines != True:
     output = output.drop(['All Lines Cumulative', 'All Lines Per Unit'], axis=1)
-  print(f'assumptions_list: {assumptions_list}')
-  return output.reset_index().rename(columns={'METRIC': 'Metric'}), DEFAULTS, assumptions_list
+
+  return output.reset_index().rename(columns={'METRIC': 'Metric'}), DEFAULTS, assumptions_list, FORMAT
