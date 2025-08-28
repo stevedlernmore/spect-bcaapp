@@ -96,6 +96,13 @@ def GET_NETSALES_MARGIN_METRICS(FORMAT):
 
   return net_sales_metrics, margin_metrics
 
+# STANDARD
+def GET_SGA_METRICS(FORMAT):
+  margin_idx = FORMAT.index.get_loc('MARGIN %')
+  sga_idx = FORMAT.index.get_loc('SG&A')
+  sga_metrics = FORMAT.index[margin_idx+1:sga_idx]
+  return sga_metrics.tolist()
+
 def NET_SALES_CALCULATIONS(output, DATA, ASSUMPTIONS, NET_SALES_METRICS, PRODUCT_LINES, DEFAULTS, volume):
   for metric in NET_SALES_METRICS:
     total_metric = 0
@@ -211,92 +218,27 @@ def MARGIN_CALCULATIONS(PRODUCT_LINES, MARGIN_METRICS, output, DATA, DEFAULTS, F
 
 # STANDARD
 def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, file):
-  sheets = pd.ExcelFile(file).sheet_names
 
-  handling_shipping_pd = None
-  inspect_return_pd = None
-  rebox_pd = None
-  pallet_wrap_pd = None
-
-  if 'Handling/Shipping' in sheets:
-    handling_shipping_pd = pd.read_excel(file, sheet_name='Handling Shipping', index_col='P Line')
-  if 'Inspect Return' in sheets:
-    inspect_return_pd = pd.read_excel(file, sheet_name='Inspect Return', index_col='P Line')
-  if 'Return Allowance Put Away Rebox' in sheets:
-    rebox_pd = pd.read_excel(file, sheet_name='Return Allowance Put Away Rebox', index_col='P Line')
-  if 'Pallet Wrap' in sheets:
-    pallet_wrap_pd = pd.read_excel(file, sheet_name='Pallet Wrap', index_col='P Line')
+  print(SGA_METRICS)
 
   for metric in SGA_METRICS:
     output.loc[metric, 'All Lines Cumulative'] = 0
   output.loc['SG&A', 'All Lines Cumulative'] = 0
   for line in PRODUCT_LINES:
-    if handling_shipping_pd is None:
-      try:
-        output.loc['Handling/Shipping', f'{line} Per Unit'] = ASSUMPTIONS.loc[line, 'Handling/Shipping']
-        output.loc['Handling/Shipping', f'{line} Cumulative'] = ASSUMPTIONS.loc[line, 'Handling/Shipping'] * output.loc['QTY Gross', f'{line} Cumulative']
-      except:
-        output.loc['Handling/Shipping', f'{line} Per Unit'] = ASSUMPTIONS.loc['-', 'Handling/Shipping']
-        output.loc['Handling/Shipping', f'{line} Cumulative'] = ASSUMPTIONS.loc['-', 'Handling/Shipping'] * output.loc['QTY Gross', f'{line} Cumulative']
-    else:
-      output.loc['Handling/Shipping', f'{line} Per Unit'] = handling_shipping_pd.loc[line].iloc[0]
-      output.loc['Handling/Shipping', f'{line} Cumulative'] = handling_shipping_pd.loc[line].iloc[0] * output.loc['QTY Gross', f'{line} Cumulative']
-    output.loc['Handling/Shipping', 'All Lines Cumulative'] += output.loc['Handling/Shipping', f'{line} Cumulative']
-    
-    output.loc['Fill Rate Fines', f'{line} Cumulative'] = output.loc['NET SALES', f'{line} Cumulative'] * DEFAULTS.get('Fill Rate Fines', 0)
-    output.loc['Fill Rate Fines', 'All Lines Cumulative'] += output.loc['Fill Rate Fines', f'{line} Cumulative']
-    output.loc['Fill Rate Fines', f'{line} Per Unit'] = getPerUnit('Fill Rate Fines', f'{line} Cumulative', output)
-    
-    if inspect_return_pd is None:
-      output.loc['Inspect Return', f'{line} Per Unit'] = ASSUMPTIONS.loc[line, 'Handling/Shipping']
-    else:
-      try:
-        output.loc['Inspect Return', f'{line} Per Unit'] = inspect_return_pd.loc[line].iloc[0]
-      except:
-        output.loc['Inspect Return', f'{line} Per Unit'] = 0
-    
-    if rebox_pd is None:
-      output.loc['Return Allowance Put Away/Rebox', f'{line} Per Unit'] = ASSUMPTIONS.loc[line, 'Handling/Shipping']+ASSUMPTIONS.loc[line, 'Return Allowance Put Away/Rebox']
-    else:
-      try:
-        output.loc['Return Allowance Put Away/Rebox', f'{line} Per Unit'] = rebox_pd.loc[line].iloc[1]
-      except:
-        output.loc['Return Allowance Put Away/Rebox', f'{line} Per Unit'] = 0
-    
-    if pallet_wrap_pd is None:
-      try:
-        output.loc['Pallets / Wrapping', f'{line} Per Unit'] = ASSUMPTIONS.loc[line, 'Pallets / Wrapping']
-        output.loc['Pallets / Wrapping', f'{line} Cumulative'] = ASSUMPTIONS.loc[line, 'Pallets / Wrapping'] * output.loc['QTY Gross', f'{line} Cumulative']
-        output.loc['Pallets / Wrapping', 'All Lines Cumulative'] += output.loc['Pallets / Wrapping', f'{line} Cumulative']
-      except:
-        output.loc['Pallets / Wrapping', f'{line} Per Unit'] = ASSUMPTIONS.loc['-', 'Pallets / Wrapping']
-        output.loc['Pallets / Wrapping', f'{line} Cumulative'] = ASSUMPTIONS.loc['-', 'Pallets / Wrapping'] * output.loc['QTY Gross', f'{line} Cumulative']
-        output.loc['Pallets / Wrapping', 'All Lines Cumulative'] += output.loc['Pallets / Wrapping', f'{line} Cumulative']
-    else:
-      try:
-        output.loc['Pallets / Wrapping', f'{line} Per Unit'] = pallet_wrap_pd.loc[line].iloc[0]
-        output.loc['Pallets / Wrapping', f'{line} Cumulative'] = pallet_wrap_pd.loc[line].iloc[0] * output.loc['QTY Gross', f'{line} Cumulative']
-        output.loc['Pallets / Wrapping', 'All Lines Cumulative'] += output.loc['Pallets / Wrapping', f'{line} Cumulative']
-      except:
-        output.loc['Pallets / Wrapping', f'{line} Per Unit'] = 0
-        output.loc['Pallets / Wrapping', f'{line} Cumulative'] = 0
-    try:
-      output.loc['Delivery Cost', f'{line} Per Unit'] = ASSUMPTIONS.loc[line, 'Delivery Cost']
-      output.loc['Delivery Cost', f'{line} Cumulative'] = ASSUMPTIONS.loc[line, 'Delivery Cost'] * output.loc['QTY Gross', f'{line} Cumulative']
-      output.loc['Delivery Cost', 'All Lines Cumulative'] += output.loc['Delivery Cost', f'{line} Cumulative']
-    except:
-      output.loc['Delivery Cost', f'{line} Per Unit'] = ASSUMPTIONS.loc['-', 'Delivery Cost']
-      output.loc['Delivery Cost', f'{line} Cumulative'] = ASSUMPTIONS.loc['-', 'Delivery Cost'] * output.loc['QTY Gross', f'{line} Cumulative']
-      output.loc['Delivery Cost', 'All Lines Cumulative'] += output.loc['Delivery Cost', f'{line} Cumulative']
+    for metric in SGA_METRICS:
+      if metric == 'Fill Rate Fines':
+        output.loc['Fill Rate Fines', f'{line} Cumulative'] = output.loc['NET SALES', f'{line} Cumulative'] * DEFAULTS.get('Fill Rate Fines', 0)
+        output.loc['Fill Rate Fines', 'All Lines Cumulative'] += output.loc['Fill Rate Fines', f'{line} Cumulative']
+        output.loc['Fill Rate Fines', f'{line} Per Unit'] = getPerUnit('Fill Rate Fines', f'{line} Cumulative', output)
+      elif metric == 'Inspect Return':
+        output.loc['Inspect Return', f'{line} Per Unit'] = output.loc['Handling/Shipping', f'{line} Per Unit']
+      elif metric == 'Return Allowance Put Away/Rebox':
+        output.loc['Return Allowance Put Away/Rebox', f'{line} Per Unit'] = output.loc['Handling/Shipping', f'{line} Per Unit'] + ASSUMPTIONS.loc[line, 'Return Allowance Put Away/Rebox']
+      else:
+        output.loc[metric, f'{line} Per Unit'] = ASSUMPTIONS.loc[line, metric]
+        output.loc[metric, f'{line} Cumulative'] = ASSUMPTIONS.loc[line, metric] * output.loc['QTY Gross', f'{line} Cumulative']
+        output.loc[metric, 'All Lines Cumulative'] += output.loc[metric, f'{line} Cumulative']
 
-    try:
-      output.loc['Special Marketing (We Control)', f'{line} Per Unit'] = ASSUMPTIONS.loc[line, 'Special Marketing (We Control)']
-      output.loc['Special Marketing (We Control)', f'{line} Cumulative'] = ASSUMPTIONS.loc[line, 'Special Marketing (We Control)'] * output.loc['QTY Gross', f'{line} Cumulative']
-      output.loc['Special Marketing (We Control)', 'All Lines Cumulative'] += output.loc['Special Marketing (We Control)', f'{line} Cumulative']
-    except:
-      output.loc['Special Marketing (We Control)', f'{line} Per Unit'] = 0
-      output.loc['Special Marketing (We Control)', f'{line} Cumulative'] = 0
-    
     return_allowance = output.loc['Return Allowance', f'{line} Cumulative']
     per_unit_sales = output.loc['NET SALES', f'{line} Per Unit']
     per_unit_inspect = output.loc['Inspect Return', f'{line} Per Unit']
@@ -306,11 +248,15 @@ def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, 
     else:
       output.loc['Inspect Return', f'{line} Cumulative'] = (return_allowance/per_unit_sales)*per_unit_inspect*-1
       output.loc['Inspect Return', 'All Lines Cumulative'] += output.loc['Inspect Return', f'{line} Cumulative']
+
     output.loc['Return Allowance Put Away/Rebox', f'{line} Cumulative'] = (return_allowance/per_unit_sales)*per_unit_rebox*-1*(1-DEFAULTS.get('Scrap Return Rate', 0))
     output.loc['Return Allowance Put Away/Rebox', 'All Lines Cumulative'] += output.loc['Return Allowance Put Away/Rebox', f'{line} Cumulative']
+    
     SGA = 0
     for metric in SGA_METRICS:
+      print(f'Adding {metric}: {output.loc[metric, f"{line} Cumulative"]}')
       SGA += output.loc[metric, f'{line} Cumulative']
+    print('end')
     output.loc['SG&A', f'{line} Cumulative'] = SGA
     output.loc['SG&A', 'All Lines Cumulative'] += SGA
     output.loc['SG&A', f'{line} Per Unit'] = getPerUnit('SG&A', f'{line} Cumulative', output)

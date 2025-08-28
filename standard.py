@@ -5,15 +5,7 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
   FORMAT = pd.read_excel(file, sheet_name="Format", index_col="METRIC")
   all_lines = FORMAT.loc['QTY Gross', 'Add All Lines']
   NET_SALES_METRICS, MARGIN_METRICS = util.GET_NETSALES_MARGIN_METRICS(FORMAT)
-  SGA_METRICS = [
-    'Handling/Shipping',
-    'Fill Rate Fines',
-    'Inspect Return',
-    'Return Allowance Put Away/Rebox',
-    'Pallets / Wrapping',
-    'Delivery Cost',
-    'Special Marketing (We Control)']
-
+  SGA_METRICS = util.GET_SGA_METRICS(FORMAT)
   DATA = pd.read_excel(file, sheet_name="Data")
   PRODUCT_LINES = DATA['P Line'].unique()
   if user_defaults_df is not None:
