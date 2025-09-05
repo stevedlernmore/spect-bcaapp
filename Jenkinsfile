@@ -14,15 +14,11 @@ pipeline {
           def prepareExecute = "bash ./${prepareScript}"
           withCredentials([file(credentialsId: 'BCA-secrets', variable: 'SECRETS_FILE')]) {
             sshagent(['spectra-ec2']) {
-              // Create both the main and .streamlit directories first
-              sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'mkdir -p /home/ubuntu/BCA_Streamlit/.streamlit/'"
-              // Now copy the secrets file
+              sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'mkdir -p /home/ubuntu/BCA_Streamlit/.streamlit && chown -R ubuntu:ubuntu /home/ubuntu/BCA_Streamlit'"
               sh """
                 scp -o StrictHostKeyChecking=no \$SECRETS_FILE ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/.streamlit/secrets.toml
               """
-              // Copy the rest of the project
               sh "scp -o StrictHostKeyChecking=no -r ./* ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/"
-              // Run the preparation script
               sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'cd /home/ubuntu/BCA_Streamlit && bash ${prepareScript}'"
             }
           }
