@@ -61,7 +61,7 @@ pipeline {
                 sudo bash -c "cat > /etc/nginx/sites-available/streamlit" <<EOF
     server {
         listen 80;
-        server_name YOUR_DOMAIN_OR_IP;
+        server_name ${EC2_IP_ADDRESS};
 
         location / {
             proxy_pass http://localhost:8501;
