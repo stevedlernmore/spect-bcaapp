@@ -54,11 +54,10 @@ pipeline {
           sshagent(['spectra-ec2']) {
             sh """
               ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
-                # Install Nginx and Certbot if not present
                 sudo apt-get update &&
                 sudo apt-get install -y nginx certbot python3-certbot-nginx &&
-                # Create Nginx config for Streamlit
-                sudo bash -c "cat > /etc/nginx/sites-available/streamlit" <<EOF
+                # Write Nginx config for Streamlit
+                sudo bash -c "cat > /etc/nginx/sites-available/streamlit" <<'EOL'
     server {
         listen 80;
         server_name ${EC2_IP_ADDRESS};
@@ -71,7 +70,7 @@ pipeline {
             proxy_set_header X-Forwarded-Proto \$scheme;
         }
     }
-    EOF
+    EOL
                 # Enable the config and remove the default
                 sudo ln -sf /etc/nginx/sites-available/streamlit /etc/nginx/sites-enabled/streamlit &&
                 sudo rm -f /etc/nginx/sites-enabled/default &&
