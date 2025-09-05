@@ -12,10 +12,15 @@ pipeline {
           echo 'Preparing EC2 instance...'
           def prepareScript = 'prepare_ec2.sh'
           def prepareExecute = "bash ./${prepareScript}"
-          sshagent(['spectra-ec2']) {
-            sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'mkdir -p /home/ubuntu/BCA_Streamlit/'"
-            sh "scp -o StrictHostKeyChecking=no -r ./* ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/"
-            sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'cd /home/ubuntu/BCA_Streamlit && bash ${prepareScript}'"
+          withCredentials([file(credentialsId: 'BCA-secrets', variable: 'SECRETS_FILE')]) {
+            sshagent(['spectra-ec2']) {
+              sh """
+                scp -o StrictHostKeyChecking=no \$SECRETS_FILE ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/.streamlit/secrets.toml
+              """
+              sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'mkdir -p /home/ubuntu/BCA_Streamlit/'"
+              sh "scp -o StrictHostKeyChecking=no -r ./* ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/"
+              sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'cd /home/ubuntu/BCA_Streamlit && bash ${prepareScript}'"
+            }
           }
         }
       }
@@ -28,7 +33,9 @@ pipeline {
             sh """
               ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
                 cd /home/ubuntu/BCA_Streamlit &&
-                nohup streamlit run main.py --server.port=8501 --server.headless true > streamlit.log 2>&1 &
+                source venv/bin/activate &&
+                pkill -f "streamlit run" || true &&
+                nohup venv/bin/streamlit run main.py --server.port=8501 --server.headless true > streamlit.log 2>&1 &
               '
             """
           }
