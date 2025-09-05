@@ -72,8 +72,9 @@ pipeline {
         }
     }
     EOF
-                # Enable the config and restart Nginx
+                # Enable the config and remove the default
                 sudo ln -sf /etc/nginx/sites-available/streamlit /etc/nginx/sites-enabled/streamlit &&
+                sudo rm -f /etc/nginx/sites-enabled/default &&
                 sudo nginx -t &&
                 sudo systemctl restart nginx
               '
