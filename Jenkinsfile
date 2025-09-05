@@ -14,7 +14,13 @@ pipeline {
           def prepareExecute = "bash ./${prepareScript}"
           withCredentials([file(credentialsId: 'BCA-secrets', variable: 'SECRETS_FILE')]) {
             sshagent(['spectra-ec2']) {
-              sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'mkdir -p /home/ubuntu/BCA_Streamlit/.streamlit && chown -R ubuntu:ubuntu /home/ubuntu/BCA_Streamlit'"
+              sh """
+                ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
+                  sudo mkdir -p /home/ubuntu/BCA_Streamlit/.streamlit &&
+                  sudo chown -R ubuntu:ubuntu /home/ubuntu/BCA_Streamlit &&
+                  sudo chmod -R u+rwX /home/ubuntu/BCA_Streamlit
+                '
+              """
               sh """
                 scp -o StrictHostKeyChecking=no \$SECRETS_FILE ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/.streamlit/secrets.toml
               """
