@@ -24,7 +24,7 @@ pipeline {
               sh """
                 scp -o StrictHostKeyChecking=no \$SECRETS_FILE ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/.streamlit/secrets.toml
               """
-              sh "scp -o StrictHostKeyChecking=no -r ./* ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/"
+              sh "scp -o StrictHostKeyChecking=no -r . ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/"
               sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'cd /home/ubuntu/BCA_Streamlit && bash ${prepareScript}'"
             }
           }
