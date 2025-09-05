@@ -6,10 +6,14 @@ echo "Updating package list..."
 sudo apt-get update
 
 echo "Installing Python3, pip, venv, and git..."
-sudo apt-get install -y python3 python3-pip python3.12-venv git
+sudo apt-get install -y python3 python3-pip python3-venv git
+
+cd /home/ubuntu/BCA_Streamlit
+
+echo "Creating Python virtual environment if needed..."
+python3 -m venv venv
 
 echo "Activating virtual environment and upgrading pip..."
-python3 -m venv venv
 source venv/bin/activate
 python3 -m pip install --upgrade pip
 
@@ -41,7 +45,6 @@ EOL
 
 echo "Reloading systemd daemon and enabling service..."
 sudo systemctl daemon-reload
-sudo systemctl enable bca_streamlit.service
+sudo systemctl enable bca_streamlit
 
-echo "Systemd service for BCA_Streamlit prepared. You can start it with: sudo systemctl start bca_streamlit"
-echo "EC2 preparation"
+echo "EC2 preparation complete."

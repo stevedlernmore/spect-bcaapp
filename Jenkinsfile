@@ -38,13 +38,12 @@ pipeline {
           sshagent(['spectra-ec2']) {
             sh """
               ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
-                cd /home/ubuntu/BCA_Streamlit &&
-                source venv/bin/activate &&
-                pkill -f "streamlit run" || true &&
-                nohup venv/bin/streamlit run main.py --server.port=8501 --server.headless true > streamlit.log 2>&1 & disown'
+                sudo systemctl daemon-reload &&
+                sudo systemctl restart bca_streamlit &&
+                sudo systemctl enable bca_streamlit
+              '
             """
           }
-          
         }
       }
     }
