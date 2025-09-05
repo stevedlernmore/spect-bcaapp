@@ -8,7 +8,8 @@ sudo apt-get update
 echo "Installing Python3, pip, venv, and git..."
 sudo apt-get install -y python3 python3-pip python3.12-venv git
 
-echo "Upgrading pip..."
+echo "Activating virtual environment and upgrading pip..."
+python3 -m venv venv
 source venv/bin/activate
 python3 -m pip install --upgrade pip
 
