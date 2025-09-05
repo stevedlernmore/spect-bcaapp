@@ -47,5 +47,48 @@ pipeline {
         }
       }
     }
+    stage('Configure Nginx for HTTPS') {
+      steps {
+        script {
+          echo 'Configuring Nginx as HTTPS reverse proxy...'
+          sshagent(['spectra-ec2']) {
+            sh """
+              ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
+                # Install Nginx and Certbot if not present
+                sudo apt-get update &&
+                sudo apt-get install -y nginx certbot python3-certbot-nginx &&
+                # Create Nginx config for Streamlit
+                sudo bash -c "cat > /etc/nginx/sites-available/streamlit" <<EOF
+    server {
+        listen 80;
+        server_name YOUR_DOMAIN_OR_IP;
+
+        location / {
+            proxy_pass http://localhost:8501;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+        }
+    }
+    EOF
+                # Enable the config and restart Nginx
+                sudo ln -sf /etc/nginx/sites-available/streamlit /etc/nginx/sites-enabled/streamlit &&
+                sudo nginx -t &&
+                sudo systemctl restart nginx
+              '
+            """
+            // Uncomment and edit the next block if you have a domain and want to enable HTTPS automatically:
+            /*
+            sh """
+              ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
+                sudo certbot --nginx --non-interactive --agree-tos -m YOUR_EMAIL -d YOUR_DOMAIN_OR_IP
+              '
+            """
+            */
+          }
+        }
+      }
+    }
   }
 }
