@@ -10,7 +10,7 @@ pipeline {
       steps {
         script{
           echo 'Fetching and checking out the Streamlit repository...'
-          git branch: 'main', url: 'git@github.com:youruser/your-streamlit-repo.git'
+          git branch: 'main', url: 'git@github.com:antamayo1/BCA_Streamlit.git'
         }
       }
     }
