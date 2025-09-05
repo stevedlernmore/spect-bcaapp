@@ -6,14 +6,6 @@ pipeline {
   }
 
   stages {
-    stage('Fetch and Checkout Streamlit Repo') {
-      steps {
-        script{
-          echo 'Fetching and checking out the Streamlit repository...'
-          git branch: 'main', url: 'git@github.com:antamayo1/BCA_Streamlit.git'
-        }
-      }
-    }
     stage('Prepare EC2 Instance') {
       steps {
         script {
