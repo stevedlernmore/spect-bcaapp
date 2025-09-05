@@ -6,9 +6,10 @@ echo "Updating package list..."
 sudo apt-get update
 
 echo "Installing Python3, pip, venv, and git..."
-sudo apt-get install -y python3 python3-pip python3-venv git
+sudo apt-get install -y python3 python3-pip python3.12-venv git
 
 echo "Upgrading pip..."
+source venv/bin/activate
 python3 -m pip install --upgrade pip
 
 echo "Installing Python dependencies from requirements.txt..."
