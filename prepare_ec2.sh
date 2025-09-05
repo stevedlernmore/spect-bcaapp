@@ -21,7 +21,7 @@ echo "Creating systemd service for BCA_Streamlit..."
 SERVICE_FILE="/etc/systemd/system/bca_streamlit.service"
 APP_DIR="/home/ubuntu/BCA_Streamlit"
 VENV_PATH="$APP_DIR/venv/bin/streamlit"
-APP_FILE="app.py"
+APP_FILE="main.py"
 USER="ubuntu"
 
 sudo bash -c "cat > $SERVICE_FILE" <<EOL
