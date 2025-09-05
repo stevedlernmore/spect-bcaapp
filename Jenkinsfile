@@ -54,21 +54,21 @@ pipeline {
           sshagent(['spectra-ec2']) {
             sh """
   ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
-sudo bash -c "cat > /etc/nginx/sites-available/streamlit" <<EOL
+sudo bash -c "cat > /etc/nginx/sites-available/streamlit" <<'EOL'
 server {
-    listen 80;
-    server_name bca-trial.xyz;
+  listen 80;
+  server_name bca-trial.xyz;
 
-    location / {
-        proxy_pass http://localhost:8501;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
+  location / {
+    proxy_pass http://localhost:8501;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+  }
 }
 EOL
-  '
+'
 """
 
             sh """
