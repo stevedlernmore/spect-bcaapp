@@ -24,9 +24,14 @@ pipeline {
       steps {
         script {
           echo 'Deploying Streamlit app...'
-          def deployLine = 'sudo systemctl start bca_streamlit'
           sshagent(['spectra-ec2']) {
-            sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/ '${deployLine}'"
+            sh """
+              ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
+                cd /home/ubuntu/BCA_Streamlit &&
+                pkill -f "streamlit run" || true &&
+                nohup venv/bin/streamlit run main.py --server.port=8501 --server.headless true > streamlit.log 2>&1 &
+              '
+            """
           }
         }
       }
