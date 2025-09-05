@@ -1,19 +1,42 @@
 pipeline {
   agent any
+
+  environment {
+    EC2_IP_ADDRESS = '13.213.50.58'
+  }
+
   stages {
-    stage('Hello!') {
+    stage('Fetch and Checkout Streamlit Repo') {
       steps {
-        echo 'My name is Aaron and I am learning Jenkins!'
+        script{
+          echo 'Fetching and checking out the Streamlit repository...'
+          git branch: 'main', url: 'git@github.com:youruser/your-streamlit-repo.git'
+        }
       }
     }
-    stage('Hi!') {
+    stage('Prepare EC2 Instance') {
       steps {
-        echo 'Hello Aaron, welcome to Jenkins!'
+        script {
+          echo 'Preparing EC2 instance...'
+          def prepareScript = 'prepare_ec2.sh'
+          def prepareExecute = "bash ./${prepareScript}"
+          sshagent(['spectra-ec2']) {
+            sh "scp -o StrictHostKeyChecking=no ${prepareScript} ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/"
+            sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '${prepareExecute}'"
+          }
+        }
       }
     }
-    stage('Bye!') {
+    stage('Deploy Streamlit App') {
       steps {
-        echo 'Goodbye Aaron, see you next time!'
+        script {
+          echo 'Deploying Streamlit app...'
+          def deployLine = 'sudo systemctl start bca_streamlit'
+          sshagent(['spectra-ec2']) {
+            sh "scp -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/"
+            sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '${deployLine}'"
+          }
+        }
       }
     }
   }
