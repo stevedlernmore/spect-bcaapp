@@ -15,27 +15,27 @@ AI_client = OpenAI(
 )
 
 def escape_markdown(text):
-    escape_chars = ['$']
-    for char in escape_chars:
-        text = text.replace(char, f"\\{char}")
-    return text
+  escape_chars = ['$']
+  for char in escape_chars:
+      text = text.replace(char, f"\\{char}")
+  return text
 
 def format_value_for_input(name, value):
-    """Format a value for display in text input based on its type"""
-    if value is None:
-        return ""
-    if 'per unit' in name.lower() or 'cumulative' in name.lower() or 'big' in name.lower() or \
-       'shipping' in name.lower() or 'pallets' in name.lower() or \
-       'delivery' in name.lower() or 'inspect return' in name.lower() or 'rebox' in name.lower() or \
-       'labor' in name.lower() or 'overhead' in name.lower() or 'special marketing' in name.lower():
-      if 'alliance' in name.lower():
-          return f"{value*100:.2f}%"
-      else:
-          return f"${value:.2f}"
-    elif 'qty' in name.lower():
-        return f"{value}"
-    else:
+  """Format a value for display in text input based on its type"""
+  if value is None:
+      return ""
+  if 'per unit' in name.lower() or 'cumulative' in name.lower() or 'big' in name.lower() or \
+      'shipping' in name.lower() or 'pallets' in name.lower() or \
+      'delivery' in name.lower() or 'inspect return' in name.lower() or 'rebox' in name.lower() or \
+      'labor' in name.lower() or 'overhead' in name.lower() or 'special marketing' in name.lower():
+    if 'alliance' in name.lower():
         return f"{value*100:.2f}%"
+    else:
+        return f"${value:.2f}"
+  elif 'qty' in name.lower():
+      return f"{value}"
+  else:
+      return f"{value*100:.2f}%"
 
 def parse_input_value(name, input_str):
     """Parse a formatted input string back to numeric value"""
