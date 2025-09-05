@@ -15,6 +15,7 @@ pipeline {
           withCredentials([file(credentialsId: 'BCA-secrets', variable: 'SECRETS_FILE')]) {
             sshagent(['spectra-ec2']) {
               sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'mkdir -p /home/ubuntu/BCA_Streamlit/.streamlit/'"
+              // Now copy the secrets file
               sh """
                 scp -o StrictHostKeyChecking=no \$SECRETS_FILE ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/.streamlit/secrets.toml
               """
@@ -35,8 +36,10 @@ pipeline {
             sh """
               ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
                 cd /home/ubuntu/BCA_Streamlit &&
+                source venv/bin/activate &&
                 pkill -f "streamlit run" || true &&
-                nohup ./venv/bin/streamlit run main.py --server.port=8501 --server.headless true > streamlit.log 2>&1 &
+                nohup venv/bin/streamlit run main.py --server.port=8501 --server.headless true > streamlit.log 2>&1 & &&
+                ps aux | grep streamlit
               '
             """
           }
