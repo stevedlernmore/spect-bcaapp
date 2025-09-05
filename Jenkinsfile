@@ -57,7 +57,7 @@ pipeline {
                 sudo apt-get update &&
                 sudo apt-get install -y nginx certbot python3-certbot-nginx &&
                 # Write Nginx config for Streamlit
-                sudo bash -c "cat > /etc/nginx/sites-available/streamlit" <<'EOL'
+                sudo bash -c "cat > /etc/nginx/sites-available/streamlit" <<EOL
     server {
         listen 80;
         server_name bca-trial.xyz;
@@ -75,7 +75,7 @@ pipeline {
                 sudo ln -sf /etc/nginx/sites-available/streamlit /etc/nginx/sites-enabled/streamlit &&
                 sudo rm -f /etc/nginx/sites-enabled/default &&
                 sudo nginx -t &&
-                sudo systemctl restart nginx
+                sudo systemctl reload nginx
               '
             """
 
