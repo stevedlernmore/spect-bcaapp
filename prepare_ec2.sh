@@ -44,4 +44,4 @@ sudo systemctl daemon-reload
 sudo systemctl enable bca_streamlit.service
 
 echo "Systemd service for BCA_Streamlit prepared. You can start it with: sudo systemctl start bca_streamlit"
-echo "EC2 preparation
+echo "EC2 preparation"
