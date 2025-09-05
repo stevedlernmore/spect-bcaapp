@@ -52,26 +52,26 @@ pipeline {
         script {
           echo 'Configuring Nginx as HTTPS reverse proxy...'
           sshagent(['spectra-ec2']) {
+          sh """
+            ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
+              sudo bash -c "cat > /etc/nginx/sites-available/streamlit" <<EOL
+server {
+  listen 80;
+  server_name bca-trial.xyz;
+
+  location / {
+    proxy_pass http://localhost:8501;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+  }
+}
+  EOL'
+          """
+          
             sh """
               ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
-                sudo apt-get update &&
-                sudo apt-get install -y nginx certbot python3-certbot-nginx &&
-                # Write Nginx config for Streamlit
-                sudo bash -c "cat > /etc/nginx/sites-available/streamlit" <<EOL
-    server {
-        listen 80;
-        server_name bca-trial.xyz;
-
-        location / {
-            proxy_pass http://localhost:8501;
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto \$scheme;
-        }
-    }
-    EOL
-                # Enable the config and remove the default
                 sudo ln -sf /etc/nginx/sites-available/streamlit /etc/nginx/sites-enabled/streamlit &&
                 sudo rm -f /etc/nginx/sites-enabled/default &&
                 sudo nginx -t &&
