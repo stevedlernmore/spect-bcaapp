@@ -60,7 +60,7 @@ pipeline {
                 sudo bash -c "cat > /etc/nginx/sites-available/streamlit" <<'EOL'
     server {
         listen 80;
-        server_name ${EC2_IP_ADDRESS};
+        server_name bca-trial.xyz;
 
         location / {
             proxy_pass http://localhost:8501;
@@ -78,14 +78,12 @@ pipeline {
                 sudo systemctl restart nginx
               '
             """
-            // Uncomment and edit the next block if you have a domain and want to enable HTTPS automatically:
-            /*
+
             sh """
               ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
-                sudo certbot --nginx --non-interactive --agree-tos -m YOUR_EMAIL -d YOUR_DOMAIN_OR_IP
+                sudo certbot --nginx --non-interactive --agree-tos -m aaronjohn.tamayo29@gmail.com -d bca-trial.xyz
               '
             """
-            */
           }
         }
       }
