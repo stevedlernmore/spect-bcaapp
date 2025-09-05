@@ -13,8 +13,9 @@ pipeline {
           def prepareScript = 'prepare_ec2.sh'
           def prepareExecute = "bash ./${prepareScript}"
           sshagent(['spectra-ec2']) {
-            sh "scp -o StrictHostKeyChecking=no ${prepareScript} ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/"
-            sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '${prepareExecute}'"
+            sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'mkdir -p /home/ubuntu/BCA_Streamlit/'"
+            sh "scp -o StrictHostKeyChecking=no -r ./* ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/"
+            sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'cd /home/ubuntu/BCA_Streamlit && bash ${prepareScript}'"
           }
         }
       }
@@ -25,8 +26,7 @@ pipeline {
           echo 'Deploying Streamlit app...'
           def deployLine = 'sudo systemctl start bca_streamlit'
           sshagent(['spectra-ec2']) {
-            sh "scp -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/"
-            sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '${deployLine}'"
+            sh "ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS}:/home/ubuntu/BCA_Streamlit/ '${deployLine}'"
           }
         }
       }
