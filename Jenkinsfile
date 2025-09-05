@@ -54,7 +54,7 @@ pipeline {
           sshagent(['spectra-ec2']) {
             sh """
 ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} '
-echo "server {
+echo '\''server {
     listen 80;
     server_name bca-trial.xyz;
 
@@ -65,7 +65,7 @@ echo "server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
-}" | sudo tee /etc/nginx/sites-available/streamlit > /dev/null
+}'\'' | sudo tee /etc/nginx/sites-available/streamlit > /dev/null
 '
 """
             sh """
