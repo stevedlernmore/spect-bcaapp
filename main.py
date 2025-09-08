@@ -7,8 +7,12 @@ import PA
 import UNITED
 import VAST
 import standard
-from io import BytesIO
 from openai import OpenAI
+from UtilityLibrary import ExcelExport
+from BCA_Matrix_tab import BCA_Matrix_tab
+
+# solution
+volume = 0
 
 AI_client = OpenAI(
   api_key=st.secrets["OPEN_AI_KEY"]
@@ -23,99 +27,81 @@ def escape_markdown(text):
 def format_value_for_input(name, value):
   """Format a value for display in text input based on its type"""
   if value is None:
-      return ""
+    return ""
   if 'per unit' in name.lower() or 'cumulative' in name.lower() or 'big' in name.lower() or \
       'shipping' in name.lower() or 'pallets' in name.lower() or \
       'delivery' in name.lower() or 'inspect return' in name.lower() or 'rebox' in name.lower() or \
       'labor' in name.lower() or 'overhead' in name.lower() or 'special marketing' in name.lower():
     if 'alliance' in name.lower():
-        return f"{value*100:.2f}%"
-    else:
-        return f"${value:.2f}"
-  elif 'qty' in name.lower():
-      return f"{value}"
-  else:
       return f"{value*100:.2f}%"
+    else:
+      return f"${value:.2f}"
+  elif 'qty' in name.lower():
+    return f"{value}"
+  else:
+    return f"{value*100:.2f}%"
 
 def parse_input_value(name, input_str):
-    """Parse a formatted input string back to numeric value"""
-    if not input_str or input_str.strip() == "":
-        return 0.0
-    
-    input_str = input_str.strip()
-    
-    try:
-        if input_str.endswith('%'):
-            numeric_part = input_str[:-1].strip()
-            value = float(numeric_part) / 100.0
-        elif input_str.startswith('$'):
-            numeric_part = input_str[1:].strip()
-            value = float(numeric_part)
-        else:
-            value = float(input_str)
-        
-        return value
-    except (ValueError, TypeError):
-        # If parsing fails, return 0
-        return 0.0
+  if not input_str or input_str.strip() == "":
+    return 0.0
+  input_str = input_str.strip()
+  try:
+    if input_str.endswith('%'):
+      numeric_part = input_str[:-1].strip()
+      value = float(numeric_part) / 100.0
+    elif input_str.startswith('$'):
+      numeric_part = input_str[1:].strip()
+      value = float(numeric_part)
+    else:
+      value = float(input_str)
+    return value
+  except:
+    return 0.0
 
 def auto_format_input(name, input_str):
-    """Automatically format input by adding appropriate signs (%, $) based on field type"""
-    if not input_str or input_str.strip() == "":
-        return ""
-    
-    input_str = input_str.strip()
-    
-    # If already properly formatted, return as-is
-    if input_str.endswith('%') or input_str.startswith('$'):
-        return input_str
-    
-    is_percentage_field = not ('per unit' in name.lower() or 'cumulative' in name.lower() or 
-                              'big' in name.lower() or 'shipping' in name.lower() or 
-                              'return allowance' in name.lower() or 'pallets' in name.lower() or 
-                              'delivery' in name.lower() or 'inspect return' in name.lower() or 
-                              'rebox' in name.lower() or 'labor' in name.lower() or 
-                              'overhead' in name.lower() or 'special marketing' in name.lower() or
-                              'qty' in name.lower())
-    
-    is_dollar_field = ('per unit' in name.lower() or 'cumulative' in name.lower() or 
-                      'big' in name.lower() or 'shipping' in name.lower()  or 'pallets' in name.lower() or 
-                      'delivery' in name.lower() or 'inspect return' in name.lower() or 
-                      'rebox' in name.lower() or 'labor' in name.lower() or 
-                      'overhead' in name.lower() or 'special marketing' in name.lower()) and not 'alliance' in name.lower()
-
-    try:
-        float(input_str)
-        
-        if is_percentage_field:
-            return f"{input_str}%"
-        elif is_dollar_field:
-            return f"${input_str}"
-        else: 
-            return input_str
-    except ValueError:
-        return input_str
+  if not input_str or input_str.strip() == "":
+    return ""
+  input_str = input_str.strip()
+  if input_str.endswith('%') or input_str.startswith('$'):
+    return input_str
+  is_percentage_field = not ('per unit' in name.lower() or 'cumulative' in name.lower() or 
+                            'big' in name.lower() or 'shipping' in name.lower() or 
+                            'return allowance' in name.lower() or 'pallets' in name.lower() or 
+                            'delivery' in name.lower() or 'inspect return' in name.lower() or 
+                            'rebox' in name.lower() or 'labor' in name.lower() or 
+                            'overhead' in name.lower() or 'special marketing' in name.lower() or
+                            'qty' in name.lower())
+  is_dollar_field = ('per unit' in name.lower() or 'cumulative' in name.lower() or 
+                    'big' in name.lower() or 'shipping' in name.lower()  or 'pallets' in name.lower() or 
+                    'delivery' in name.lower() or 'inspect return' in name.lower() or 
+                    'rebox' in name.lower() or 'labor' in name.lower() or 
+                    'overhead' in name.lower() or 'special marketing' in name.lower()) and not 'alliance' in name.lower()
+  try:
+    float(input_str)
+    if is_percentage_field:
+      return f"{input_str}%"
+    elif is_dollar_field:
+      return f"${input_str}"
+    else: 
+      return input_str
+  except:
+    return input_str
 
 def validate_input_format(name, input_str):
-    """Validate that input format is correct for the field type"""
-    if not input_str or input_str.strip() == "":
-        return True, ""
-
-    try:
-        auto_format_input(name, input_str)
-        return True, ""
-    except:
-        return False, "Invalid number format"
+  if not input_str or input_str.strip() == "":
+    return True, ""
+  try:
+    auto_format_input(name, input_str)
+    return True, ""
+  except:
+    return False, "Invalid number format"
 
 def format_dataframe_for_display(df):
   display_df = df.copy()
-  
   if 'Metric' in display_df.columns:
     metric_col_idx = display_df.columns.get_loc('Metric')
     display_df.insert(metric_col_idx + 1, ' ', '')
-    
     original_data_cols = [col for col in df.columns if col != 'Metric']
-    
     blank_col_counter = 1
     for i in range(2, len(original_data_cols), 2):
       target_col = original_data_cols[i]
@@ -123,19 +109,15 @@ def format_dataframe_for_display(df):
       blank_col_name = ' ' * (blank_col_counter + 1)
       display_df.insert(current_col_idx, blank_col_name, '')
       blank_col_counter += 1
-  
   blank_row_triggers = ['Defect %', 'NET SALES', 'MARGIN %', 'SG&A', 'FACTORING %']
   rows_to_insert = []
-  
   for idx in display_df.index:
     if 'Metric' in display_df.columns:
       metric_value = str(display_df.loc[idx, 'Metric'])
     else:
       metric_value = str(idx)
-    
     if any(trigger in metric_value for trigger in blank_row_triggers):
       rows_to_insert.append(idx)
-  
   for row_idx in reversed(rows_to_insert):
     blank_row = pd.Series([''] * len(display_df.columns), index=display_df.columns)
     display_df = pd.concat([
@@ -143,7 +125,6 @@ def format_dataframe_for_display(df):
       pd.DataFrame([blank_row]),
       display_df.iloc[display_df.index.get_loc(row_idx) + 1:]
     ], ignore_index=True)
-  
   for col in display_df.columns:
     for idx in display_df.index:
       value = display_df.loc[idx, col]
@@ -177,205 +158,12 @@ def format_dataframe_for_display(df):
             display_df.loc[idx, col] = f"({abs(num_value):,.2f})"
           else:
             display_df.loc[idx, col] = f"{num_value:,.2f}"
-      except (ValueError, TypeError):
+      except:
         if pd.isna(value) or value == '' or str(value).strip() == '':
           display_df.loc[idx, col] = ""
         else:
           display_df.loc[idx, col] = str(value)
   return display_df
-
-def to_excel_bytes(summary_df, defaults_df=None, plines=None, metrics=None, format_for_export=False):
-  output = BytesIO()
-  with pd.ExcelWriter(output, engine='openpyxl') as writer:
-    if format_for_export:
-      export_df = summary_df.copy()
-      
-      if 'Metric' in export_df.columns:
-        metric_col_idx = export_df.columns.get_loc('Metric')
-        export_df.insert(metric_col_idx + 1, ' ', '')
-        
-        original_data_cols = [col for col in summary_df.columns if col != 'Metric']
-        
-        blank_col_counter = 1
-        for i in range(2, len(original_data_cols), 2):
-          target_col = original_data_cols[i]
-          current_col_idx = export_df.columns.get_loc(target_col)
-          blank_col_name = ' ' * (blank_col_counter + 1)
-          export_df.insert(current_col_idx, blank_col_name, '')
-          blank_col_counter += 1
-      
-      blank_row_triggers = ['Defect %', 'NET SALES', 'MARGIN %', 'SG&A', 'FACTORING %']
-      rows_to_insert = []
-      
-      for idx in export_df.index:
-        if 'Metric' in export_df.columns:
-          metric_value = str(export_df.loc[idx, 'Metric'])
-        else:
-          metric_value = str(idx)
-        
-        if any(trigger in metric_value for trigger in blank_row_triggers):
-          rows_to_insert.append(idx)
-      
-      for row_idx in reversed(rows_to_insert):
-        blank_row = pd.Series([''] * len(export_df.columns), index=export_df.columns)
-        export_df = pd.concat([
-          export_df.iloc[:export_df.index.get_loc(row_idx) + 1],
-          pd.DataFrame([blank_row]),
-          export_df.iloc[export_df.index.get_loc(row_idx) + 1:]
-        ], ignore_index=True)
-      
-      export_df.to_excel(writer, index=False, sheet_name='Summary')
-      
-      worksheet = writer.sheets['Summary']
-      
-      from openpyxl.styles import Font, Alignment, Border, Side
-      from openpyxl.utils import get_column_letter
-      
-      worksheet.insert_rows(1)
-      for row in worksheet.iter_rows():
-        for cell in row:
-          cell.border = Border()
-
-      data_cols = [col for col in export_df.columns if col != 'Metric' and not col.strip() == '']
-      product_lines = {}
-      
-      for i, col in enumerate(data_cols):
-        if 'Cumulative' in col or 'Per Unit' in col:
-          if 'Cumulative' in col:
-            product_name = col.replace(' Cumulative', '').strip()
-          else:
-            product_name = col.replace(' Per Unit', '').strip()
-          
-          if product_name not in product_lines:
-            product_lines[product_name] = []
-          
-          col_pos = export_df.columns.get_loc(col) + 1
-          product_lines[product_name].append(col_pos)
-
-      full_border = Border(top=Side(style='thin'), bottom=Side(style='thin'), left=Side(style='thin'), right=Side(style='thin'))
-
-      for product_name, col_positions in product_lines.items():
-        if len(col_positions) >= 2:
-          start_col = min(col_positions)
-          end_col = max(col_positions)
-          
-          start_cell = f"{get_column_letter(start_col)}1"
-          end_cell = f"{get_column_letter(end_col)}1"
-          worksheet.merge_cells(f"{start_cell}:{end_cell}")
-          worksheet[start_cell].alignment = Alignment(horizontal='center', vertical='center')
-          worksheet[start_cell] = product_name
-          worksheet[start_cell].border = full_border
-          worksheet[end_cell].border = full_border
-          worksheet[start_cell].font = Font(bold=True, size=12)
-      
-      for col_idx, col_name in enumerate(export_df.columns, 1):
-        cell = worksheet.cell(row=2, column=col_idx)
-        if 'Cumulative' in col_name:
-          cell.value = 'Cumulative'
-          cell.border = full_border
-        elif 'Per Unit' in col_name:
-          cell.value = 'Per Unit'
-          cell.border = full_border
-        elif col_name == 'Metric':
-          cell.value = 'Metric'
-          cell.border = full_border
-        else:
-          cell.value = col_name
-        cell.font = Font(bold=True)
-      
-      thin_border = Border(
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-      )
-      
-      max_row = worksheet.max_row
-      max_col = worksheet.max_column
-      
-      for row in range(1, max_row + 1):
-        for col in range(1, max_col + 1):
-          if col == 2 and worksheet.cell(row=row, column=1).value in defaults_df.index:
-            worksheet.cell(row=row, column=col).value = defaults_df.loc[worksheet.cell(row=row, column=1).value].iloc[0]
-            worksheet.cell(row=row, column=col).alignment = Alignment(horizontal='center')
-          cell = worksheet.cell(row=row, column=col)
-          if str(cell.value).strip() != "" and (worksheet.cell(row=row, column=1).value == 'QTY Total'
-            or worksheet.cell(row=row, column=1).value == 'NET SALES'
-            or worksheet.cell(row=row, column=1).value == 'TOTAL VARIABLE COST'
-            or worksheet.cell(row=row, column=1).value == 'MARGIN'
-            or worksheet.cell(row=row, column=1).value == 'SG&A'
-            or worksheet.cell(row=row, column=1).value == 'Contribution Margin'):
-            cell.border = thin_border
-          if row <= 2:
-            cell.font = Font(bold=True)
-          if (worksheet.cell(row=row, column=1).value == 'QTY Total' or 
-              worksheet.cell(row=row, column=1).value == 'Defect %' or
-              worksheet.cell(row=row, column=1).value == 'NET SALES' or
-              worksheet.cell(row=row, column=1).value == 'MARGIN' or 
-              worksheet.cell(row=row, column=1).value == 'MARGIN %' or 
-              cell.value == 'SG&A' or 
-              cell.value == 'FACTORING %' or
-              worksheet.cell(row=row, column=1).value == 'Contribution Margin' or
-              worksheet.cell(row=row, column=1).value == 'Contribution Margin %'):
-            cell.font = Font(bold=True)
-          try:
-            float(cell.value)
-            if (worksheet.cell(row=row, column=1).value == 'Defect %' or
-                worksheet.cell(row=row, column=1).value == 'MARGIN %' or
-                worksheet.cell(row=row, column=1).value == 'Contribution Margin %' or col == 2):
-              cell.number_format = '0.00%'
-            elif (worksheet.cell(row=row, column=1).value == 'QTY Gross' or
-                worksheet.cell(row=row, column=1).value == 'QTY Defect' or
-                worksheet.cell(row=row, column=1).value == 'QTY Total'):
-              cell.number_format = '#,##0'
-            else:
-              cell.number_format = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)'
-          except:
-            pass
-      for column in worksheet.columns:
-        max_length = 0
-        column_letter = get_column_letter(column[0].column)
-        for cell in column:
-          try:
-            if len(str(cell.value)) > max_length:
-              max_length = len(str(cell.value))
-          except:
-            pass
-        adjusted_width = min(max_length + 2, 50)
-        worksheet.column_dimensions[column_letter].width = adjusted_width
-      worksheet.column_dimensions['B'].width = 10
-    else:
-      summary_df.to_excel(writer, index=False, sheet_name='Summary')
-    
-    if defaults_df is not None:
-      new_df = pd.DataFrame(columns=['Product Lines'] + [metric for metric in metrics][::-1])
-      new_df['Product Lines'] = [lines for lines in plines]
-      for line in plines:
-        for metric in metrics:
-          new_df.loc[new_df['Product Lines'] == line, metric] = defaults_df.loc[f'{line} {metric}'].iloc[0]
-      new_df.to_excel(writer, sheet_name='Defaults & Assumptions', index=False)
-      worksheet = writer.sheets['Defaults & Assumptions']
-      for row in worksheet.iter_rows():
-        for cell in row:
-          cell.border = Border()
-      for i, col in enumerate(worksheet.iter_cols(min_row=1, max_row=1), 1):
-        header = col[0].value
-        if header:
-          width = min(len(str(header)) + 2, 50)
-          worksheet.column_dimensions[get_column_letter(i)].width = width
-      max_row = worksheet.max_row
-      max_col = worksheet.max_column
-
-      for row in range(1, max_row + 1):
-        for col in range(1, max_col + 1):
-          worksheet.cell(row=row, column=col).alignment = Alignment(horizontal='center', vertical='center')
-          worksheet.cell(row=row, column=col).border = thin_border
-          if worksheet.cell(row=1, column=col).value != 'Product Lines':
-            if worksheet.cell(row=1, column=col).value != 'Defect %':
-              worksheet.cell(row=row, column=col).number_format = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)'
-            else:
-              worksheet.cell(row=row, column=col).number_format = '0.00%'
-
-  output.seek(0)
-  return output.getvalue()
 
 st.set_page_config(
     page_title="Rapid BCA Analyzer",
@@ -515,147 +303,6 @@ st.markdown("""
     .stTabs [aria-selected="true"]:hover {
         background-color: #004080 !important;
         color: #FFFFFF !important;
-    }
-
-    /* Enhanced File uploader styling */
-    .stFileUploader {
-        background-color: #FFFFFF;
-    }
-
-    .stFileUploader > div {
-        background-color: #f8f9fa !important;
-        border: 2px dashed #002855 !important;
-        border-radius: 10px !important;
-        padding: 30px 20px !important;
-        text-align: center;
-        transition: all 0.3s ease;
-    }
-
-    .stFileUploader > div:hover {
-        border-color: #004080 !important;
-        background-color: #e8f4fd !important;
-        box-shadow: 0 4px 8px rgba(0,40,85,0.1);
-    }
-
-    /* File uploader text */
-    .stFileUploader label {
-        color: #002855 !important;
-        font-weight: 600 !important;
-        font-size: 16px !important;
-    }
-
-    .stFileUploader small {
-        color: #6c757d !important;
-        font-size: 14px !important;
-    }
-
-    /* Upload area */
-    .stFileUploader > div > div {
-        background-color: transparent !important;
-        border: none !important;
-    }
-
-    .stFileUploader [data-testid="stFileUploaderDropzone"] {
-        background-color: transparent !important;
-    }
-
-    .stFileUploader [data-testid="stFileUploaderDropzoneInstructions"] {
-        color: #002855 !important;
-        font-weight: 500 !important;
-    }
-
-    /* Browse files button - ONLY affects the main upload button */
-    .stFileUploader button[kind="primary"] {
-        background-color: #002855 !important;
-        color: #FFFFFF !important;
-        border-radius: 8px !important;
-        border: none !important;
-        font-weight: 600 !important;
-        padding: 10px 24px !important;
-        font-size: 14px !important;
-        transition: all 0.2s ease;
-    }
-
-    .stFileUploader button[kind="primary"]:hover {
-        background-color: #004080 !important;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,40,85,0.2);
-    }
-
-    .stFileUploader button[kind="primary"]:active {
-        transform: translateY(0);
-    }
-
-    /* Fallback for browse button if kind attribute is not present */
-    .stFileUploader button:not([kind="secondary"]) {
-        background-color: #002855 !important;
-        color: #FFFFFF !important;
-        border-radius: 8px !important;
-        border: none !important;
-        font-weight: 600 !important;
-        padding: 10px 24px !important;
-        font-size: 14px !important;
-        transition: all 0.2s ease;
-    }
-
-    .stFileUploader button:not([kind="secondary"]):hover {
-        background-color: #004080 !important;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,40,85,0.2);
-    }
-
-    /* X button (delete/remove) - TRANSPARENT BACKGROUND */
-    .stFileUploader button[kind="secondary"] {
-        background-color: transparent !important;
-        color: #002855 !important;
-        border: none !important;
-        border-radius: 4px !important;
-        padding: 4px !important;
-    }
-
-    .stFileUploader button[kind="secondary"]:hover {
-        background-color: rgba(0, 40, 85, 0.1) !important;
-        color: #002855 !important;
-    }
-
-    /* X icon styling - dark blue and visible */
-    .stFileUploader button[kind="secondary"] svg {
-        fill: #002855 !important;
-        width: 16px !important;
-        height: 16px !important;
-    }
-
-    .stFileUploader button[kind="secondary"] svg * {
-        fill: #002855 !important;
-    }
-
-    /* Additional selectors for the X button */
-    .stFileUploader button[title*="Remove"] svg *,
-    .stFileUploader button[title*="Delete"] svg *,
-    .stFileUploader button[title*="Close"] svg * {
-        fill: #002855 !important;
-    }
-
-    /* Target the specific delete button */
-    .stFileUploader [data-testid="fileDeleteBtn"] {
-        background-color: transparent !important;
-        color: #002855 !important;
-        border: none !important;
-    }
-
-    .stFileUploader [data-testid="fileDeleteBtn"]:hover {
-        background-color: rgba(0, 40, 85, 0.1) !important;
-        color: #002855 !important;
-    }
-
-    .stFileUploader [data-testid="fileDeleteBtn"] svg,
-    .stFileUploader [data-testid="fileDeleteBtn"] svg * {
-        fill: #002855 !important;
-    }
-
-    /* File upload icon styling - for browse button only */
-    .stFileUploader button:not([kind="secondary"]) svg {
-        fill: #FFFFFF !important;
     }
 
     /* Expander styling */
@@ -815,65 +462,6 @@ def getFileType(file_name):
   else:
     return "Standard BCA"
 
-def getFileTypeDetails(file_type, input_file=None):
-  """Get detailed information about the file type and calculation method"""
-  details = {
-    "Amazon": {
-      "description": "Amazon Business Case Analysis",
-      "calculation_method": "Standard BCA calculation with Amazon-specific pricing and rebate structures",
-      "key_features": ["Volume-based rebates", "Fulfillment fees", "Amazon-specific return policies"],
-      "processor": "AMZ.getSummary()"
-    },
-    "Parts Authority": {
-      "description": "Parts Authority Business Case Analysis", 
-      "calculation_method": "PA-specific pricing model with distributor margins and rebate calculations",
-      "key_features": ["Distributor pricing", "Volume rebates", "PA return policies"],
-      "processor": "PA.getSummary()"
-    },
-    "OReilly": {
-      "description": "O'Reilly Auto Parts Business Case Analysis",
-      "calculation_method": "O'Reilly specific pricing and rebate calculation methodology",
-      "key_features": ["Retail pricing model", "Store-level rebates", "O'Reilly return policies"],
-      "processor": "ORL.getSummary()"
-    },
-    "AZ": {
-      "description": "AutoZone Business Case Analysis",
-      "calculation_method": "AutoZone-specific pricing and rebate calculation framework",
-      "key_features": ["AutoZone pricing structure", "Volume incentives", "AZ return policies"],
-      "processor": "AZ.getSummary()"
-    },
-    "United": {
-      "description": "United Auto Parts Business Case Analysis",
-      "calculation_method": "United-specific distributor pricing and rebate calculations",
-      "key_features": ["United pricing model", "Distributor rebates", "United return policies"],
-      "processor": "UNITED.getSummary()"
-    },
-    "VAST": {
-      "description": "VAST Auto Distribution Business Case Analysis",
-      "calculation_method": "VAST-specific pricing model with unique rebate structures",
-      "key_features": ["VAST pricing framework", "Distribution rebates", "VAST return policies"],
-      "processor": "VAST.getSummary()"
-    },
-    "Standard BCA": {
-      "description": "Standard Business Case Analysis",
-      "calculation_method": "Generic BCA calculation suitable for various business scenarios",
-      "key_features": ["Standard pricing model", "Configurable rebates", "Generic return policies"],
-      "processor": "standard.getSummary()"
-    }
-  }
-  
-  file_info = details.get(file_type, details["Standard BCA"])
-  
-  # Add file size if available
-  if input_file:
-    try:
-      file_size = len(input_file.getvalue()) / 1024  # Size in KB
-      file_info["file_size"] = f"{file_size:.1f} KB"
-    except:
-      file_info["file_size"] = "Unknown"
-  
-  return file_info
-
 if check_password():
   if 'input_file' not in st.session_state:
       st.session_state.input_file = None
@@ -927,7 +515,7 @@ if check_password():
 
   main_container = st.container(border=True)
   with main_container:
-    input_tab, summary_tab = st.tabs(["Original File", "Summary Comparison"])
+    input_tab, summary_tab, bca_matrix_tab = st.tabs(["Original File", "Summary Comparison", "BCA Matrix"])
 
     with input_tab:
       st.header("Upload Original BCA File")
@@ -1051,8 +639,8 @@ if check_password():
                     
                     with param_col3:
                       text_key = f"assumption_text_{x}"
-                      st.session_state[text_key] = format_value_for_input(x, st.session_state.input_assumptions_df[x])
-                      
+                      st.session_state[text_key] = format_value_for_input(x, st.session_state.user_assumptions_df[x])
+
                       text_value = st.text_input(
                         label=f"Edit {x}", 
                         value=st.session_state[text_key],
@@ -1166,11 +754,11 @@ if check_password():
                           st.session_state[text_key] = formatted_value  
             apply_changes = st.button("Calculate with Modified Values", key="apply_changes_button", use_container_width=True)
             if apply_changes:
-                st.toast("Calculating with modified values... This may take a moment.")
-                output, assumption_test, defaults_test, format_test = process_file(input_file, (st.session_state.user_defaults_df or {}) | (st.session_state.user_assumptions_df or {}), volume)
-                st.toast("Calculation complete!")
-                st.session_state.user_summary_df = output
-                st.session_state.response = "Analysis in progress..."
+              st.toast("Calculating with modified values... This may take a moment.")
+              output, assumption_test, defaults_test, format_test = process_file(input_file, (st.session_state.user_defaults_df or {}) | (st.session_state.user_assumptions_df or {}), volume)
+              st.toast("Calculation complete!")
+              st.session_state.user_summary_df = output
+              st.session_state.response = "Analysis in progress..."
 
         if st.session_state.input_summary_df is not None:
           with st.expander("📊 View Complete Summary", expanded=False):
@@ -1185,7 +773,7 @@ if check_password():
           })
           st.download_button(
             label="Download Summary",
-            data=to_excel_bytes(st.session_state.input_summary_df, df, st.session_state.lines, st.session_state.metrics, format_for_export=True),
+            data=ExcelExport.summaryBCA(st.session_state.input_summary_df, df, st.session_state.lines, st.session_state.metrics, format_for_export=True),
             file_name=file_name,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key="download_input_summary"
@@ -1354,14 +942,20 @@ if check_password():
                     temperature=0.2
                   )
                   st.session_state.response = response.choices[0].message.content
-                  st.rerun() 
+                  st.rerun()
             file_name = f'{st.session_state.input_file.name.split(".")[0]}_comparison.xlsx'
+            default_input = pd.DataFrame({
+              "Values":(st.session_state.input_assumptions_df or {}) | (st.session_state.input_defaults_df or {})
+            })
+            default_user = pd.DataFrame({
+              "Values":(st.session_state.user_assumptions_df or {}) | (st.session_state.user_defaults_df or {})
+            })
             st.download_button(
-              label="Download Summary",
-              data=to_excel_bytes(result_with_metrics, defaults_df, st.session_state.lines, st.session_state.metrics, format_for_export=True),
+              label="Download Overall Summary and Comparison",
+              data=ExcelExport.overallBCA(input_df, summary_df, default_input, default_user, st.session_state.lines, st.session_state.metrics),
               file_name=file_name,
               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-              key="download_comparison"
+              key="comparison_download"
             )
         except Exception as e:
           st.error(f"❌ Error calculating differences: {str(e)}")
@@ -1384,6 +978,8 @@ if check_password():
           st.info(f"**Original File Status:** {original_status}")
         with col2:
           st.info(f"**Modified (User-Edited) Status:** {modified_status}")
+    with bca_matrix_tab:
+      BCA_Matrix_tab.show()
 
   footer_col1, footer_col2, footer_col3 = st.columns([1, 2, 1])
   with footer_col2:
