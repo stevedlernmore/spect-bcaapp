@@ -319,9 +319,16 @@ class ExcelExport:
     if summary_defaults is not None and input_defaults is not None:
       delta_defaults = input_defaults - summary_defaults
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-      ExcelExport.FormatBCA(summary_df, summary_defaults, 'Original BCA', 'Original Defaults', writer, plines, metrics)
-      ExcelExport.FormatBCA(input_df, input_defaults, 'Configured BCA', 'Configured Defaults', writer, plines, metrics)
-      ExcelExport.FormatBCA(delta, delta_defaults, 'Delta BCA', 'Delta Defaults', writer, plines, metrics)
+      sheetNames = ['Original BCA', 'Scenario BCA', 'Delta BCA', 'Original Defaults', 'Scenario Defaults', 'Delta Defaults']
+      ExcelExport.FormatBCA(summary_df, summary_defaults, sheetNames[0], sheetNames[3], writer, plines, metrics)
+      ExcelExport.FormatBCA(input_df, input_defaults, sheetNames[1], sheetNames[4], writer, plines, metrics)
+      ExcelExport.FormatBCA(delta, delta_defaults, sheetNames[2], sheetNames[5], writer, plines, metrics)
+      for sheetName in sheetNames:
+        worksheet = writer.sheets[sheetName]
+        if 'BCA' in sheetName:
+          worksheet.freeze_panes = 'C3'
+        else:
+          worksheet.freeze_panes = 'A2'
     output.seek(0)
     return output
 
