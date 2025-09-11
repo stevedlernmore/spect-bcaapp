@@ -655,6 +655,9 @@ class ExcelExport:
                 worksheet.cell(row=row, column=col).number_format = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)'
               else:
                 worksheet.cell(row=row, column=col).number_format = '0.00%'
+      worksheet.freeze_panes = 'A2'
+      worksheet = writer.sheets['Summary']
+      worksheet.freeze_panes = 'C3'
 
     output.seek(0)
     return output.getvalue()
