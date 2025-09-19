@@ -230,11 +230,15 @@ def MARGIN_CALCULATIONS(PRODUCT_LINES, MARGIN_METRICS, output, DATA, DEFAULTS, F
   return output
 
 # STANDARD
-def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, FORMAT):
-
+def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, FORMAT, user_defaults_df=None):
+  special_metrics = ['Handling/Shipping', 'Fill Rate Fines', 'Inspect Return', 'Return Allowance Put Away/Rebox', 'Pallets / Wrapping']
+  cases = list(set(SGA_METRICS) - set(special_metrics))
   for metric in SGA_METRICS:
-    if FORMAT.loc[metric].iloc[0] > 1:
-      output.loc[metric, 'All Lines Cumulative'] = FORMAT.loc[metric].iloc[0]
+    if metric in cases:
+      if user_defaults_df:
+        output.loc[metric, 'All Lines Cumulative'] = user_defaults_df.get(metric)
+      else:
+        output.loc[metric, 'All Lines Cumulative'] = FORMAT.loc[metric].iloc[0]
     else:
       output.loc[metric, 'All Lines Cumulative'] = 0
   output.loc['SG&A', 'All Lines Cumulative'] = 0
@@ -376,6 +380,8 @@ class ExcelExport:
     return export_df
   
   def FormatBCA(dataframe, default_dataframe, bca_sheetname, defaults_sheetname, writer, plines, metrics):
+    special_metrics = ['Handling/Shipping', 'Fill Rate Fines', 'Inspect Return', 'Return Allowance Put Away/Rebox', 'Pallets / Wrapping', 'Defect %']
+    cases = list(set(metrics) - set(special_metrics))
     export_df = ExcelExport.addSpaces(dataframe)
     export_df.to_excel(writer, index=False, sheet_name=bca_sheetname)
     worksheet = writer.sheets[bca_sheetname]
@@ -466,7 +472,10 @@ class ExcelExport:
           if (worksheet.cell(row=row, column=1).value == 'Defect %' or
               worksheet.cell(row=row, column=1).value == 'MARGIN %' or
               worksheet.cell(row=row, column=1).value == 'Contribution Margin %' or col == 2):
-            cell.number_format = '0.00%'
+            if worksheet.cell(row=row, column=1).value in cases:
+              cell.number_format = '_($* #,##_);_($* (#,##);_($* "-"??_);_(@_)'
+            else:
+              cell.number_format = '0.00%'
           elif (worksheet.cell(row=row, column=1).value == 'QTY Gross' or
               worksheet.cell(row=row, column=1).value == 'QTY Defect' or
               worksheet.cell(row=row, column=1).value == 'QTY Total'):
@@ -484,9 +493,8 @@ class ExcelExport:
             max_length = len(str(cell.value))
         except:
           pass
-      adjusted_width = min(max_length + 2, 50)
+      adjusted_width = min(max_length + 2, 40)
       worksheet.column_dimensions[column_letter].width = adjusted_width
-    worksheet.column_dimensions['B'].width = 10
 
     if default_dataframe is not None:
       new_df = pd.DataFrame(columns=['Product Lines'] + [metric for metric in metrics][::-1])
@@ -517,7 +525,9 @@ class ExcelExport:
             else:
               worksheet.cell(row=row, column=col).number_format = '0.00%'
 
-  def summaryBCA(summary_df, defaults_df=None, plines=None, metrics=None, format_for_export=False):
+  def summaryBCA(summary_df, defaults_df=None, plines=None, metrics=None):
+    special_metrics = ['Handling/Shipping', 'Fill Rate Fines', 'Inspect Return', 'Return Allowance Put Away/Rebox', 'Pallets / Wrapping', 'Defect %']
+    cases = list(set(metrics) - set(special_metrics))
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
       export_df = ExcelExport.addSpaces(summary_df)
@@ -610,10 +620,10 @@ class ExcelExport:
             if (worksheet.cell(row=row, column=1).value == 'Defect %' or
                 worksheet.cell(row=row, column=1).value == 'MARGIN %' or
                 worksheet.cell(row=row, column=1).value == 'Contribution Margin %' or col == 2):
-              if cell.value <= 1:
-                cell.number_format = '0.00%'
-              else:
+              if worksheet.cell(row=row, column=1).value in cases:
                 cell.number_format = '$ #,##'
+              else:
+                cell.number_format = '0.00%'
             elif (worksheet.cell(row=row, column=1).value == 'QTY Gross' or
                 worksheet.cell(row=row, column=1).value == 'QTY Defect' or
                 worksheet.cell(row=row, column=1).value == 'QTY Total'):

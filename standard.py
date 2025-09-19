@@ -38,7 +38,7 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
   output = util.QTY_CALCULATIONS(PRODUCT_LINES, output, DATA, ASSUMPTIONS, volume)
   output = util.NET_SALES_CALCULATIONS(output, DATA, ASSUMPTIONS, NET_SALES_METRICS, PRODUCT_LINES, DEFAULTS, volume)
   output = util.MARGIN_CALCULATIONS(PRODUCT_LINES, MARGIN_METRICS, output, DATA, DEFAULTS, FORMAT)
-  output = util.SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, FORMAT)
+  output = util.SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, FORMAT, user_defaults_df)
 
   total_factoring = 0
   total_contribution_margin = 0
@@ -56,7 +56,11 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
     output.loc['Contribution Margin %', f'{line} Cumulative'] = output.loc['Contribution Margin', f'{line} Cumulative'] / net_sales
   output.loc['FACTORING %', 'All Lines Cumulative'] = total_factoring
   output.loc['FACTORING %', 'All Lines Per Unit'] = util.getPerUnit('FACTORING %', 'All Lines Cumulative', output)
-  output.loc['Contribution Margin', 'All Lines Cumulative'] = total_contribution_margin
+  output.loc['Contribution Margin', 'All Lines Cumulative'] = 0
+  margin = output.loc['MARGIN', 'All Lines Cumulative']
+  SGA = output.loc['SG&A', 'All Lines Cumulative']
+  factoring = output.loc['FACTORING %', 'All Lines Cumulative']
+  output.loc['Contribution Margin', 'All Lines Cumulative'] = margin - SGA - factoring
   output.loc['Contribution Margin', 'All Lines Per Unit'] = util.getPerUnit('Contribution Margin', 'All Lines Cumulative', output)
   total_margin = output.loc['Contribution Margin', 'All Lines Cumulative']
   total_net_sales = output.loc['NET SALES', 'All Lines Cumulative']

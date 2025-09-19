@@ -773,7 +773,7 @@ if check_password():
           })
           st.download_button(
             label="Download Summary",
-            data=ExcelExport.summaryBCA(st.session_state.input_summary_df, df, st.session_state.lines, st.session_state.metrics, format_for_export=True),
+            data=ExcelExport.summaryBCA(st.session_state.input_summary_df, df, st.session_state.lines, st.session_state.metrics),
             file_name=file_name,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key="download_input_summary"
