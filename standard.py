@@ -38,7 +38,7 @@ def getSummary(file, user_defaults_df=None, volume=0.0):
   output = util.QTY_CALCULATIONS(PRODUCT_LINES, output, DATA, ASSUMPTIONS, volume)
   output = util.NET_SALES_CALCULATIONS(output, DATA, ASSUMPTIONS, NET_SALES_METRICS, PRODUCT_LINES, DEFAULTS, volume)
   output = util.MARGIN_CALCULATIONS(PRODUCT_LINES, MARGIN_METRICS, output, DATA, DEFAULTS, FORMAT)
-  output = util.SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, file)
+  output = util.SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, FORMAT)
 
   total_factoring = 0
   total_contribution_margin = 0

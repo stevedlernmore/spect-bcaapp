@@ -230,10 +230,13 @@ def MARGIN_CALCULATIONS(PRODUCT_LINES, MARGIN_METRICS, output, DATA, DEFAULTS, F
   return output
 
 # STANDARD
-def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, file):
+def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, FORMAT):
 
   for metric in SGA_METRICS:
-    output.loc[metric, 'All Lines Cumulative'] = 0
+    if FORMAT.loc[metric].iloc[0] > 1:
+      output.loc[metric, 'All Lines Cumulative'] = FORMAT.loc[metric].iloc[0]
+    else:
+      output.loc[metric, 'All Lines Cumulative'] = 0
   output.loc['SG&A', 'All Lines Cumulative'] = 0
   for line in PRODUCT_LINES:
     for metric in SGA_METRICS:
@@ -267,8 +270,10 @@ def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, 
     for metric in SGA_METRICS:
       SGA += output.loc[metric, f'{line} Cumulative']
     output.loc['SG&A', f'{line} Cumulative'] = SGA
-    output.loc['SG&A', 'All Lines Cumulative'] += SGA
     output.loc['SG&A', f'{line} Per Unit'] = getPerUnit('SG&A', f'{line} Cumulative', output)
+    
+  for metric in SGA_METRICS:
+    output.loc['SG&A', 'All Lines Cumulative'] += output.loc[metric, 'All Lines Cumulative']
 
   for metric in SGA_METRICS:
     output.loc[metric, 'All Lines Per Unit'] = getPerUnit(metric, 'All Lines Cumulative', output)
@@ -605,7 +610,10 @@ class ExcelExport:
             if (worksheet.cell(row=row, column=1).value == 'Defect %' or
                 worksheet.cell(row=row, column=1).value == 'MARGIN %' or
                 worksheet.cell(row=row, column=1).value == 'Contribution Margin %' or col == 2):
-              cell.number_format = '0.00%'
+              if cell.value <= 1:
+                cell.number_format = '0.00%'
+              else:
+                cell.number_format = '$ #,##'
             elif (worksheet.cell(row=row, column=1).value == 'QTY Gross' or
                 worksheet.cell(row=row, column=1).value == 'QTY Defect' or
                 worksheet.cell(row=row, column=1).value == 'QTY Total'):
@@ -623,9 +631,8 @@ class ExcelExport:
               max_length = len(str(cell.value))
           except:
             pass
-        adjusted_width = min(max_length + 2, 50)
+        adjusted_width = min(max_length + 2, 40)
         worksheet.column_dimensions[column_letter].width = adjusted_width
-      worksheet.column_dimensions['B'].width = 10
       
       if defaults_df is not None:
         new_df = pd.DataFrame(columns=['Product Lines'] + [metric for metric in metrics][::-1])
@@ -662,7 +669,6 @@ class ExcelExport:
     output.seek(0)
     return output.getvalue()
   
-
 
 class BCA_Matrix:
   def getBCAs(files):
