@@ -679,6 +679,50 @@ class ExcelExport:
     output.seek(0)
     return output.getvalue()
   
+  def matrixExport(comparison_df, title):
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+      comparison_df.to_excel(writer, index=False, sheet_name=title)
+      worksheet = writer.sheets[title]
+      worksheet.insert_rows(1)
+      worksheet['A1'] = title
+      worksheet['A1'].font = Font(bold=True, size=14)
+      worksheet['A1'].alignment = Alignment(horizontal='center', vertical='center')
+      worksheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=worksheet.max_column)
+      for row in worksheet.iter_rows():
+        for cell in row:
+          cell.border = Border(top=Side(style='thin'), bottom=Side(style='thin'))
+      worksheet.freeze_panes = 'B3'
+
+      for column in worksheet.columns:
+        max_length = 0
+        column_letter = get_column_letter(column[0].column)
+        for cell in column:
+          if column_letter == 'A':
+            cell.alignment = Alignment(horizontal='center')
+          try:
+            if len(str(cell.value)) > max_length:
+              max_length = len(str(cell.value))
+          except:
+            pass
+          if 'Defect %' in title or 'MARGIN %' in title or 'Contribution Margin %' in title:
+            cell.number_format = '0.00 %'
+          elif 'QTY Gross' in title or 'QTY Defect' in title or 'QTY Total' in title:
+            cell.number_format = '#,##0'
+          else:
+            cell.number_format = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)'
+        adjusted_width = min(max_length + 2, 40)
+        worksheet.column_dimensions[column_letter].width = adjusted_width
+      
+    max_row = worksheet.max_row
+    max_col = worksheet.max_column
+    for row in range(2, max_row + 1):
+      for col in range(1, max_col + 1):
+        cell = worksheet.cell(row=row, column=col)
+        cell.value = "doesn't make any sense"
+
+    output.seek(0)
+    return output.getvalue()
 
 class BCA_Matrix:
   def getBCAs(files):
