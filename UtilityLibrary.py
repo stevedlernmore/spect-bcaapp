@@ -682,8 +682,8 @@ class ExcelExport:
   def matrixExport(comparison_df, title):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-      comparison_df.to_excel(writer, index=False, sheet_name=title)
-      worksheet = writer.sheets[title]
+      comparison_df.to_excel(writer, index=False, sheet_name='Matrix')
+      worksheet = writer.sheets['Matrix']
       worksheet.insert_rows(1)
       worksheet['A1'] = title
       worksheet['A1'].font = Font(bold=True, size=14)
@@ -755,13 +755,14 @@ class BCA_Matrix:
             cust_names.append(customers[idx])
           except:
             continue
-      outliers = []
-      for idx, val in enumerate(values):
-        lower = min(val * 0.95, val * 1.05)
-        upper = max(val * 0.95, val * 1.05)
-        others = [v for i, v in enumerate(values) if i != idx]
-        if all(other < lower or other > upper for other in others):
-          outliers.append(cust_names[idx])
+      if len(values) < 3:
+        continue
+      q1 = np.percentile(values, 25)
+      q3 = np.percentile(values, 75)
+      iqr = q3 - q1
+      lower_bound = q1 - 1.5 * iqr
+      upper_bound = q3 + 1.5 * iqr
+      outliers = [cust_names[idx] for idx, val in enumerate(values) if val < lower_bound or val > upper_bound]
       if outliers:
         outlier_result[pline] = outliers
     return outlier_result

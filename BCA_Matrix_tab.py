@@ -67,21 +67,22 @@ class BCA_Matrix_tab:
       styled_df = comparison.set_index('Customer').map(ExcelExport.table_format, metric=selectedMetric)
       styled = styled_df.style.map(ExcelExport.highlight_negative)
       title = f"{selectedMetric} Matrix"
+      sheet_header = f"{selectedMetric} {st.session_state.mode} Matrix"
       st.dataframe(styled)
       st.download_button(
         label="Download Matrix as Excel",
         type="primary",
-        data=ExcelExport.matrixExport(comparison, title),
+        data=ExcelExport.matrixExport(comparison, sheet_header),
         file_name=f'{title}.xlsx',
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="matrix_download"
       )
-      # descripancy = pd.DataFrame(BCA_Matrix.getDescripancy(comparison))
-      # st.subheader("Discrepancy Report", anchor=False)
-      # st.write("These are the **product lines** with price discrepancies from the other retailers. Consider the listed retailers to be outliers in certain product lines.")
-      # if descripancy.empty:
-      #   st.success("No discrepancies found.", icon="✅")
-      # else:
-      #   st.dataframe(descripancy, hide_index=True)
+      descripancy = pd.DataFrame(BCA_Matrix.getDescripancy(comparison))
+      st.subheader("Discrepancy Report", anchor=False)
+      st.write("These are the **product lines** with price discrepancies from the other retailers. Consider the listed retailers to be outliers in certain product lines.")
+      if descripancy.empty:
+        st.success("No discrepancies found. No product line pricing is an outlier.", icon="✅")
+      else:
+        st.dataframe(descripancy, hide_index=True)
     else:
       st.error("Please upload at least one Excel file to proceed.", icon="❗")
