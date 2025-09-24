@@ -57,7 +57,7 @@ ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP_ADDRESS} 'bash -s' << 'EOF'
 sudo tee /etc/nginx/sites-available/streamlit > /dev/null << 'NGINX_CONF'
 server {
   listen 80;
-  server_name bca-trial.xyz;
+  server_name bca-trial.xyz 13.213.50.58;
 
   location / {
     proxy_pass http://localhost:8501;
