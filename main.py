@@ -1041,6 +1041,7 @@ if check_password():
         files.upload_date as "Upload Date"
       FROM files 
       JOIN users ON files.user_id = users.id''')
+      
       df_bca = pd.DataFrame(records, columns=["File ID", "Full Name of User", "Input Filename", "BCA Filename", "Upload Date"])
       df_bca["Upload Date"] = pd.to_datetime(df_bca["Upload Date"], format='mixed').dt.strftime("%B %d, %Y - %I:%M %p")
       df_bca.set_index("File ID", inplace=True)
