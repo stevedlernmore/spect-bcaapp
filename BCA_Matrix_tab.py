@@ -5,7 +5,7 @@ import pandas as pd
 class BCA_Matrix_tab:
   
   def show():
-    st.subheader("Upload Files", anchor=False)
+    st.header("Upload Files", anchor=False)
     with st.expander("View details"):
       st.warning("**Please note the filename format `<customer name>-<date>.xlsx` or `<customer name>-<date>.xlsx`**", icon="⚠️")
       st.markdown("**Upload your Excel files containing BCA matrices. Supported formats: `.xlsx`, `.xls`.**")

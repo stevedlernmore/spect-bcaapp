@@ -238,7 +238,10 @@ def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, 
       if user_defaults_df:
         output.loc[metric, 'All Lines Cumulative'] = user_defaults_df.get(metric)
       else:
-        output.loc[metric, 'All Lines Cumulative'] = FORMAT.loc[metric].iloc[0]
+        if np.isnan(FORMAT.loc[metric].iloc[0]):
+          output.loc[metric, 'All Lines Cumulative'] = 0
+        else:
+          output.loc[metric, 'All Lines Cumulative'] = FORMAT.loc[metric].iloc[0]
     else:
       output.loc[metric, 'All Lines Cumulative'] = 0
   output.loc['SG&A', 'All Lines Cumulative'] = 0

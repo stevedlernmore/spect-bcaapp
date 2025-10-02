@@ -1,17 +1,57 @@
+from datetime import datetime
 import streamlit as st
 import pandas as pd
-import AMZ
-import ORL
-import AZ
-import PA
-import UNITED
-import VAST
 import standard
 from openai import OpenAI
 from UtilityLibrary import ExcelExport
 from BCA_Matrix_tab import BCA_Matrix_tab
+import sqlite3
+import uuid
+import hashlib
+import os
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
 
-# solution
+auto_size = JsCode("""
+function(params) {
+    params.api.sizeColumnsToFit();
+}
+""")
+
+@st.dialog("Register")
+def register():
+  st.write("Welcome!")
+  username = st.text_input("Username")
+  fullname = st.text_input("Full Name")
+  password = st.text_input("New Password", type="password")
+  confirm_password = st.text_input("Confirm Password", type="password")
+  if st.button("Submit", use_container_width=True):
+    
+    if password != confirm_password:
+      st.toast("Passwords do not match", icon="🚨")
+    elif not username or not fullname or not password:
+      st.toast("All fields are required!", icon="🚨")
+    elif cursor.execute('''SELECT * FROM users WHERE username = ?''', (username,)).fetchone():
+      st.toast("Username already exists", icon="🚨")
+    else:
+      user_id = str(uuid.uuid4())
+      password_hash = hashlib.scrypt(password.encode(), salt=b'secret_salt', n=16384, r=8, p=1).hex()
+      cursor.execute('''INSERT INTO users (id, username, fullName, password) VALUES (?, ?, ?, ?)''', (user_id, username, fullname, password_hash))
+      conn.commit()
+      st.toast("User registered successfully")
+
+      st.session_state["authenticated"] = True
+      st.session_state["username"] = username
+      st.session_state["fullName"] = fullname
+      st.session_state["role"] = "User"
+      st.session_state["password"] = password
+      st.session_state["id"] = user_id
+      st.rerun()
+
+conn = sqlite3.connect('database.db', check_same_thread=False)
+cursor = conn.cursor()
+cursor.execute('''CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT, fullName TEXT, password TEXT, role TEXT DEFAULT 'User')''')
+cursor.execute('''CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY, user_id TEXT, input_fileName TEXT, output_fileName TEXT, upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id))''')
+
 volume = 0
 
 AI_client = OpenAI(
@@ -166,9 +206,9 @@ def format_dataframe_for_display(df):
   return display_df
 
 st.set_page_config(
-    page_title="Rapid BCA Analyzer",
-    page_icon="logo-spectra-premium.jpg", 
-    layout="wide"
+  page_title="Rapid BCA Analyzer",
+  page_icon="logo-spectra-premium.jpg", 
+  layout="wide"
 )
 
 st.markdown("""
@@ -423,23 +463,32 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+def password_entered():
+  username = cursor.execute('''SELECT * FROM users WHERE username = ?''', (st.session_state["username"],)).fetchone()
+  print(username)
+  if not username:
+    st.toast("**Username does not exist**", icon="🚨")
+  elif hashlib.scrypt(st.session_state["password"].encode(), salt=b'secret_salt', n=16384, r=8, p=1).hex() == username[3]:
+    st.session_state["authenticated"] = True
+    st.session_state["username"] = username[1]
+    st.session_state["fullName"] = username[2]
+    st.session_state['role'] = username[4]
+    st.session_state["id"] = username[0]
+  else:
+    st.toast("**Incorrect username or password**", icon="🚨")
+    st.session_state["authenticated"] = False
+
 def check_password():
-  def password_entered():
-    if (st.session_state["username"] == "BCA_User" and st.session_state["password"] == "Analyzer"):
-      st.session_state["authenticated"] = True
-    else:
-      st.error("Incorrect username or password")
-      st.session_state["authenticated"] = False
-      
-  col1, col2, col3 = st.columns([2, 1, 2])
+  _, col2, _ = st.columns([2, 1, 2])
   with col2:
       if "authenticated" not in st.session_state or st.session_state["authenticated"] is False:
-        container = st.container(border=True)
-        with container:
+        with st.container(border=True):
           st.image("logo-spectra-premium.jpg", width=300)
           st.session_state["username"] = st.text_input("Username", key="username_input")
           st.session_state["password"] = st.text_input("Password", type="password", key="password_input")
-          st.button("Login", on_click=password_entered, key="login_button", use_container_width=True)
+          with st.container(horizontal=True):
+            st.button("Login", on_click=password_entered, key="login_button", use_container_width=True)
+            st.button("Register", type="secondary", key="register_button", on_click=register, use_container_width=True)
           return False
       elif not st.session_state["authenticated"]:
         return False
@@ -464,19 +513,19 @@ def getFileType(file_name):
 
 if check_password():
   if 'input_file' not in st.session_state:
-      st.session_state.input_file = None
+    st.session_state.input_file = None
   if 'input_summary_df' not in st.session_state:
-      st.session_state.input_summary_df = None
+    st.session_state.input_summary_df = None
   if 'input_defaults_df' not in st.session_state:
-      st.session_state.input_defaults_df = None
+    st.session_state.input_defaults_df = None
   if 'input_assumptions_df' not in st.session_state:
-      st.session_state.input_assumptions_df = None
+    st.session_state.input_assumptions_df = None
   if 'user_assumptions_df' not in st.session_state:
-      st.session_state.user_assumptions_df = None
+    st.session_state.user_assumptions_df = None
   if 'user_defaults_df' not in st.session_state:
-      st.session_state.user_defaults_df = None
+    st.session_state.user_defaults_df = None
   if 'user_summary_df' not in st.session_state:
-      st.session_state.user_summary_df = None
+    st.session_state.user_summary_df = None
 
   header_container = st.container()
   with header_container:
@@ -489,33 +538,24 @@ if check_password():
       </div>
       """, unsafe_allow_html=True)
 
-  with col2:
-    st.markdown("""
-    <div class="logo-section">
-    """, unsafe_allow_html=True)
-    st.image("logo-spectra-premium.jpg", width=300)
-    st.markdown("</div>", unsafe_allow_html=True)
+    with col2:
+      st.markdown("""
+      <div class="logo-section">
+      """, unsafe_allow_html=True)
+      st.image("logo-spectra-premium.jpg", width=300)
+      st.markdown("""
+      </div>
+      """, unsafe_allow_html=True)
 
   def process_file(uploaded_file, user_defaults_df=None, volume=0.0):
-    filename = uploaded_file.name.upper()
-    if filename.startswith('AMZ'):
-      return AMZ.getSummary(uploaded_file, user_defaults_df, volume)
-    elif filename.startswith('PA'):
-      return PA.getSummary(uploaded_file, user_defaults_df, volume)
-    elif filename.startswith('ORL'):
-      return ORL.getSummary(uploaded_file, user_defaults_df, volume)
-    elif filename.startswith('AZ'):
-      return AZ.getSummary(uploaded_file, user_defaults_df, volume)
-    elif filename.startswith('UNITED'):
-      return UNITED.getSummary(uploaded_file, user_defaults_df, volume)
-    elif filename.startswith('VAST'):
-      return VAST.getSummary(uploaded_file, user_defaults_df, volume)
-    else:
-      return standard.getSummary(uploaded_file, user_defaults_df, volume)
+    return standard.getSummary(uploaded_file, user_defaults_df, volume)
 
   main_container = st.container(border=True)
   with main_container:
-    input_tab, summary_tab, bca_matrix_tab = st.tabs(["Original File", "Summary Comparison", "BCA Matrix"])
+    if st.session_state['role'] == 'Admin':
+      input_tab, summary_tab, bca_matrix_tab, bca_files_tab, users_tab = st.tabs(["Original File", "Summary Comparison", "BCA Matrix", "BCA Files", "User Management"])
+    else:
+      input_tab, summary_tab, bca_matrix_tab, bca_files_tab = st.tabs(["Original File", "Summary Comparison", "BCA Matrix", "BCA Files"])
 
     with input_tab:
       st.header("Upload Original BCA File")
@@ -556,209 +596,192 @@ if check_password():
           else:
             value = f"% {value*100:.3f}"
           return f'**{value}**'
-        if file_type == "VAST":
-          col1, col2 = st.columns(2)
-          with col1:
-            st.markdown("#### Current Values")
-            with st.expander("See Current", expanded=True):
-              for x in st.session_state.input_assumptions_df.get('Current'):
-                st.write(f"{x}:", formatter(x,st.session_state.input_assumptions_df.get('Current')[x]))
-          with col2:
-            st.markdown("#### New Values")
-            with st.expander("See New", expanded=True):
-              for x in st.session_state.input_assumptions_df.get('New'):
-                st.write(f"{x}:", formatter(x,st.session_state.input_assumptions_df.get('New')[x]))
-          st.markdown("#### Assumptions")
-          with st.expander("See Assumptions", expanded=True):
-            for x in st.session_state.input_defaults_df:
-              st.write(f"{x}:", formatter(x, st.session_state.input_defaults_df[x], True))
-        else:
-          if st.session_state.input_defaults_df is not None or st.session_state.input_assumptions_df is not None:
-            try:
-              header, date = input_file.name.split(".")[0].split("-")
-            except:
-              header, date = "Unformatted File Name", "Unknown"
-            st.subheader(f'Business Case Analysis: {header}')
-            st.write(f"**Date:** {date}")
-            st.write('You can adjust the following parameters to see their impact on the analysis:')
-            qty_col1, qty_col2, qty_col3 = st.columns([1,2,1])
-            with qty_col2:
-              st.write("#### Quantity Volume Control")
-              with st.container(border=True):
-                column1, column2 = st.columns(2)
-                with column1:
-                  st.write('Volume Percentage Change:', formatter('Volume Percentage Change', 0.0))
-                with column2:
-                  if "volume_text" not in st.session_state:
-                    st.session_state.volume_text = "0.0%"
-                  
-                  volume_text = st.text_input(
-                    label="Volume Percentage Change", 
-                    value=st.session_state.volume_text,
-                    key="volume_input", 
-                    label_visibility="collapsed", 
-                    help="Adjust the volume percentage to see how it affects the analysis (e.g., 5.0% for 5% increase)"
-                  )
-                  
-                  formatted_volume = auto_format_input("Volume Percentage Change", volume_text)
-                  
-                  is_valid, error_msg = validate_input_format("Volume Percentage Change", formatted_volume)
-                  if not is_valid:
-                    st.error(error_msg)
-                    volume = 0.0
+        if st.session_state.input_defaults_df is not None or st.session_state.input_assumptions_df is not None:
+          try:
+            header, date = input_file.name.split(".")[0].split("-")
+          except:
+            header, date = "Unformatted File Name", "Unknown"
+          st.subheader(f'Business Case Analysis: {header}')
+          st.write(f"**Date:** {date}")
+          st.write('You can adjust the following parameters to see their impact on the analysis:')
+          qty_col1, qty_col2, qty_col3 = st.columns([1,2,1])
+          with qty_col2:
+            st.write("#### Quantity Volume Control")
+            with st.container(border=True):
+              column1, column2 = st.columns(2)
+              with column1:
+                st.write('Volume Percentage Change:', formatter('Volume Percentage Change', 0.0))
+              with column2:
+                if "volume_text" not in st.session_state:
+                  st.session_state.volume_text = "0.0%"
+                
+                volume_text = st.text_input(
+                  label="Volume Percentage Change", 
+                  value=st.session_state.volume_text,
+                  key="volume_input", 
+                  label_visibility="collapsed", 
+                  help="Adjust the volume percentage to see how it affects the analysis (e.g., 5.0% for 5% increase)"
+                )
+                
+                formatted_volume = auto_format_input("Volume Percentage Change", volume_text)
+                
+                is_valid, error_msg = validate_input_format("Volume Percentage Change", formatted_volume)
+                if not is_valid:
+                  st.error(error_msg)
+                  volume = 0.0
+                else:
+                  volume = parse_input_value("Volume Percentage Change", formatted_volume)
+                  if formatted_volume != volume_text:
+                    st.session_state.volume_text = formatted_volume
+                    st.rerun()
                   else:
-                    volume = parse_input_value("Volume Percentage Change", formatted_volume)
-                    if formatted_volume != volume_text:
-                      st.session_state.volume_text = formatted_volume
+                    st.session_state.volume_text = formatted_volume
+          column1, column2 = st.columns(2)
+          with column1:
+            st.markdown("#### Assumptions")
+            with st.expander("See Assumptions", expanded=True):
+              if st.session_state.input_assumptions_df is None:
+                st.write("No assumptions found in the original file.")
+              else:
+                header_col1, header_col2, header_col3 = st.columns([3, 1.5, 1.5])
+                with header_col1:
+                  st.markdown("**Parameter**")
+                with header_col2:
+                  st.markdown("**Original Value**")
+                with header_col3:
+                  st.markdown("**Your Value**")
+                for x in st.session_state.input_assumptions_df:
+                  param_col1, param_col2, param_col3 = st.columns([3, 1.5, 1.5])
+                  
+                  with param_col1:
+                    st.markdown(f"{x}")
+                  
+                  with param_col2:
+                    original_formatted = format_value_for_input(x, st.session_state.input_assumptions_df[x])
+                    st.markdown(f"`{original_formatted}`")
+                  
+                  with param_col3:
+                    text_key = f"assumption_text_{x}"
+                    st.session_state[text_key] = format_value_for_input(x, st.session_state.user_assumptions_df[x])
+
+                    text_value = st.text_input(
+                      label=f"Edit {x}", 
+                      value=st.session_state[text_key],
+                      key=f"assumption_{x}", 
+                      label_visibility="collapsed",
+                      help=f"Enter your value for {x}",
+                      placeholder="Enter value..."
+                    )
+
+                    formatted_value = auto_format_input(x, text_value)
+                    st.session_state.user_assumptions_df[x] = parse_input_value(x, formatted_value)
+                    if formatted_value != text_value:
+                      st.session_state[text_key] = formatted_value
                       st.rerun()
                     else:
-                      st.session_state.volume_text = formatted_volume
-            column1, column2 = st.columns(2)
-            with column1:
-              st.markdown("#### Assumptions")
-              with st.expander("See Assumptions", expanded=True):
-                if st.session_state.input_assumptions_df is None:
-                  st.write("No assumptions found in the original file.")
-                else:
-                  header_col1, header_col2, header_col3 = st.columns([3, 1.5, 1.5])
-                  with header_col1:
-                    st.markdown("**Parameter**")
-                  with header_col2:
-                    st.markdown("**Original Value**")
-                  with header_col3:
-                    st.markdown("**Your Value**")
-                  for x in st.session_state.input_assumptions_df:
-                    param_col1, param_col2, param_col3 = st.columns([3, 1.5, 1.5])
-                    
-                    with param_col1:
-                      st.markdown(f"{x}")
-                    
-                    with param_col2:
-                      original_formatted = format_value_for_input(x, st.session_state.input_assumptions_df[x])
-                      st.markdown(f"`{original_formatted}`")
-                    
-                    with param_col3:
-                      text_key = f"assumption_text_{x}"
-                      st.session_state[text_key] = format_value_for_input(x, st.session_state.user_assumptions_df[x])
+                      st.session_state[text_key] = formatted_value
+          with column2:
+            st.markdown("#### Defaults")
+            with st.expander("See Defaults", expanded=True):
+              if st.session_state.input_defaults_df is None:
+                st.write("No defaults found in the original file.")
+              elif file_type == "Standard BCA":
+                st.session_state.lines = {n.split(' ', 1)[0] for n in st.session_state.input_defaults_df}
+                st.session_state.metrics = {n.split(' ', 1)[1] for n in st.session_state.input_defaults_df}
+                st.session_state.selected = st.selectbox("Select product line", options=st.session_state.lines)
+                header_col1, header_col2, header_col3 = st.columns([3, 1.5, 1.5])
+                with header_col1:
+                  st.markdown("**Parameter**")
+                with header_col2:
+                  st.markdown("**Original Value**")
+                with header_col3:
+                  st.markdown("**Your Value**")
+                for x in st.session_state.metrics:
+                  if x not in st.session_state.format.index:
+                    continue
+                  param_col1, param_col2, param_col3 = st.columns([3, 1.5, 1.5])
+                  
+                  with param_col1:
+                    st.markdown(f'{x}')
+                  
+                  with param_col2:
+                    original_formatted = format_value_for_input(f'{st.session_state.selected} {x}', st.session_state.input_defaults_df[f'{st.session_state.selected} {x}'])
+                    st.markdown(f"`{original_formatted}`")
+                  
+                  with param_col3:
+                    text_key = f"defaults_text_{st.session_state.selected} {x}"
+                    st.session_state[text_key] = format_value_for_input(f'{st.session_state.selected} {x}', st.session_state.user_defaults_df[f'{st.session_state.selected} {x}'])
+                    text_value = st.text_input(
+                      label=f"Edit f'{st.session_state.selected} {x}'", 
+                      value=st.session_state[text_key],
+                      key=f"defaults_{st.session_state.selected} {x}", 
+                      label_visibility="collapsed",
+                      help=f"Enter your value for f'{st.session_state.selected} {x}'",
+                      placeholder="Enter value..."
+                    )
 
-                      text_value = st.text_input(
-                        label=f"Edit {x}", 
-                        value=st.session_state[text_key],
-                        key=f"assumption_{x}", 
-                        label_visibility="collapsed",
-                        help=f"Enter your value for {x}",
-                        placeholder="Enter value..."
-                      )
-
-                      formatted_value = auto_format_input(x, text_value)
-                      st.session_state.user_assumptions_df[x] = parse_input_value(x, formatted_value)
+                    formatted_value = auto_format_input(f'{st.session_state.selected} {x}', text_value)
+                    
+                    is_valid, error_msg = validate_input_format(f'{st.session_state.selected} {x}', formatted_value)
+                    if not is_valid:
+                      st.error(error_msg)
+                    else:
+                      st.session_state.user_defaults_df[f'{st.session_state.selected} {x}'] = parse_input_value(f'{st.session_state.selected} {x}', formatted_value)
                       if formatted_value != text_value:
                         st.session_state[text_key] = formatted_value
                         st.rerun()
                       else:
+                        st.session_state[text_key] = formatted_value  
+              else:
+                header_col1, header_col2, header_col3 = st.columns([3, 1.5, 1.5])
+                with header_col1:
+                  st.markdown("**Parameter**")
+                with header_col2:
+                  st.markdown("**Original Value**")
+                with header_col3:
+                  st.markdown("**Your Value**")
+                for x in st.session_state.input_defaults_df:
+                  param_col1, param_col2, param_col3 = st.columns([3, 1.5, 1.5])
+                  
+                  with param_col1:
+                    st.markdown(f"{x.replace('-', '')}")
+                  
+                  with param_col2:
+                    original_formatted = format_value_for_input(x, st.session_state.input_defaults_df[x])
+                    st.markdown(f"`{original_formatted}`")
+                  
+                  with param_col3:
+                    text_key = f"defaults_text_{x}"
+                    st.session_state[text_key] = format_value_for_input(x, st.session_state.input_defaults_df[x])
+                    
+                    text_value = st.text_input(
+                      label=f"Edit {x}", 
+                      value=st.session_state[text_key],
+                      key=f"defaults_{x}", 
+                      label_visibility="collapsed",
+                      help=f"Enter your value for {x}",
+                      placeholder="Enter value..."
+                    )
+                    
+                    formatted_value = auto_format_input(x, text_value)
+                    
+                    is_valid, error_msg = validate_input_format(x, formatted_value)
+                    if not is_valid:
+                      st.error(error_msg)
+                    else:
+                      st.session_state.user_defaults_df[x] = parse_input_value(x, formatted_value)
+                      if formatted_value != text_value:
                         st.session_state[text_key] = formatted_value
-            with column2:
-              st.markdown("#### Defaults")
-              with st.expander("See Defaults", expanded=True):
-                if st.session_state.input_defaults_df is None:
-                  st.write("No defaults found in the original file.")
-                elif file_type == "Standard BCA":
-                  st.session_state.lines = {n.split(' ', 1)[0] for n in st.session_state.input_defaults_df}
-                  st.session_state.metrics = {n.split(' ', 1)[1] for n in st.session_state.input_defaults_df}
-                  st.session_state.selected = st.selectbox("Select product line", options=st.session_state.lines)
-                  header_col1, header_col2, header_col3 = st.columns([3, 1.5, 1.5])
-                  with header_col1:
-                    st.markdown("**Parameter**")
-                  with header_col2:
-                    st.markdown("**Original Value**")
-                  with header_col3:
-                    st.markdown("**Your Value**")
-                  for x in st.session_state.metrics:
-                    if x not in st.session_state.format.index:
-                      continue
-                    param_col1, param_col2, param_col3 = st.columns([3, 1.5, 1.5])
-                    
-                    with param_col1:
-                      st.markdown(f'{x}')
-                    
-                    with param_col2:
-                      original_formatted = format_value_for_input(f'{st.session_state.selected} {x}', st.session_state.input_defaults_df[f'{st.session_state.selected} {x}'])
-                      st.markdown(f"`{original_formatted}`")
-                    
-                    with param_col3:
-                      text_key = f"defaults_text_{st.session_state.selected} {x}"
-                      st.session_state[text_key] = format_value_for_input(f'{st.session_state.selected} {x}', st.session_state.user_defaults_df[f'{st.session_state.selected} {x}'])
-                      text_value = st.text_input(
-                        label=f"Edit f'{st.session_state.selected} {x}'", 
-                        value=st.session_state[text_key],
-                        key=f"defaults_{st.session_state.selected} {x}", 
-                        label_visibility="collapsed",
-                        help=f"Enter your value for f'{st.session_state.selected} {x}'",
-                        placeholder="Enter value..."
-                      )
-
-                      formatted_value = auto_format_input(f'{st.session_state.selected} {x}', text_value)
-                      
-                      is_valid, error_msg = validate_input_format(f'{st.session_state.selected} {x}', formatted_value)
-                      if not is_valid:
-                        st.error(error_msg)
+                        st.rerun()
                       else:
-                        st.session_state.user_defaults_df[f'{st.session_state.selected} {x}'] = parse_input_value(f'{st.session_state.selected} {x}', formatted_value)
-                        if formatted_value != text_value:
-                          st.session_state[text_key] = formatted_value
-                          st.rerun()
-                        else:
-                          st.session_state[text_key] = formatted_value  
-                else:
-                  header_col1, header_col2, header_col3 = st.columns([3, 1.5, 1.5])
-                  with header_col1:
-                    st.markdown("**Parameter**")
-                  with header_col2:
-                    st.markdown("**Original Value**")
-                  with header_col3:
-                    st.markdown("**Your Value**")
-                  for x in st.session_state.input_defaults_df:
-                    param_col1, param_col2, param_col3 = st.columns([3, 1.5, 1.5])
-                    
-                    with param_col1:
-                      st.markdown(f"{x.replace('-', '')}")
-                    
-                    with param_col2:
-                      original_formatted = format_value_for_input(x, st.session_state.input_defaults_df[x])
-                      st.markdown(f"`{original_formatted}`")
-                    
-                    with param_col3:
-                      text_key = f"defaults_text_{x}"
-                      st.session_state[text_key] = format_value_for_input(x, st.session_state.input_defaults_df[x])
-                      
-                      text_value = st.text_input(
-                        label=f"Edit {x}", 
-                        value=st.session_state[text_key],
-                        key=f"defaults_{x}", 
-                        label_visibility="collapsed",
-                        help=f"Enter your value for {x}",
-                        placeholder="Enter value..."
-                      )
-                      
-                      formatted_value = auto_format_input(x, text_value)
-                      
-                      is_valid, error_msg = validate_input_format(x, formatted_value)
-                      if not is_valid:
-                        st.error(error_msg)
-                      else:
-                        st.session_state.user_defaults_df[x] = parse_input_value(x, formatted_value)
-                        if formatted_value != text_value:
-                          st.session_state[text_key] = formatted_value
-                          st.rerun()
-                        else:
-                          st.session_state[text_key] = formatted_value  
-            apply_changes = st.button("Calculate with Modified Values", key="apply_changes_button", use_container_width=True)
-            if apply_changes:
-              st.toast("Calculating with modified values... This may take a moment.")
-              output, assumption_test, defaults_test, format_test = process_file(input_file, (st.session_state.user_defaults_df or {}) | (st.session_state.user_assumptions_df or {}), volume)
-              st.toast("Calculation complete!")
-              st.session_state.user_summary_df = output
-              st.session_state.response = "Analysis in progress..."
+                        st.session_state[text_key] = formatted_value  
+          apply_changes = st.button("Calculate with Modified Values", key="apply_changes_button", use_container_width=True)
+          if apply_changes:
+            st.toast("Calculating with modified values... This may take a moment.")
+            output, assumption_test, defaults_test, format_test = process_file(input_file, (st.session_state.user_defaults_df or {}) | (st.session_state.user_assumptions_df or {}), volume)
+            st.toast("Calculation complete!")
+            st.session_state.user_summary_df = output
+            st.session_state.response = "Analysis in progress..."
 
         if st.session_state.input_summary_df is not None:
           with st.expander("📊 View Complete Summary", expanded=False):
@@ -771,6 +794,32 @@ if check_password():
           df = pd.DataFrame({
             "Values":(st.session_state.input_assumptions_df or {}) | (st.session_state.input_defaults_df or {})
           })
+
+          excel_bytes = ExcelExport.summaryBCA(st.session_state.input_summary_df, df, st.session_state.lines, st.session_state.metrics)
+
+          bca_files_folder = os.path.join(os.getcwd(), "BCA Files")
+          os.makedirs(bca_files_folder, exist_ok=True)
+          bca_file_path = os.path.join(bca_files_folder, file_name)
+
+          with open(bca_file_path, 'wb') as f:
+            f.write(excel_bytes)
+
+          input_files_folder = os.path.join(os.getcwd(), "Input Files")
+          os.makedirs(input_files_folder, exist_ok=True)
+          input_file_path = os.path.join(input_files_folder, input_file.name)
+          
+          with open(input_file_path, 'wb') as f:
+            f.write(input_file.getvalue())
+          
+          file_id = str(uuid.uuid4())
+          check = cursor.execute('''SELECT * FROM files WHERE user_id = ? AND input_fileName = ?''', (st.session_state["id"], input_file.name)).fetchone()
+          if check is None: 
+            cursor.execute('''INSERT INTO files (id, user_id, input_fileName, output_fileName) VALUES (?, ?, ?, ?)''', (file_id, st.session_state["id"], input_file.name, file_name))
+          else:
+            cursor.execute('''UPDATE files SET output_fileName = ? WHERE user_id = ? AND input_fileName = ?''', (file_name, st.session_state["id"], input_file.name))
+          conn.commit()
+
+
           st.download_button(
             label="Download Summary",
             data=ExcelExport.summaryBCA(st.session_state.input_summary_df, df, st.session_state.lines, st.session_state.metrics),
@@ -978,8 +1027,115 @@ if check_password():
           st.info(f"**Original File Status:** {original_status}")
         with col2:
           st.info(f"**Modified (User-Edited) Status:** {modified_status}")
+
     with bca_matrix_tab:
       BCA_Matrix_tab.show()
+
+    with bca_files_tab:
+      st.header("All BCA Files")
+      records = cursor.execute('''SELECT
+        files.id as "File ID", 
+        users.fullName as "Full Name of User",
+        files.input_fileName as "Input Filename", 
+        files.output_fileName as "BCA Filename", 
+        files.upload_date as "Upload Date"
+      FROM files 
+      JOIN users ON files.user_id = users.id''')
+      df_bca = pd.DataFrame(records, columns=["File ID", "Full Name of User", "Input Filename", "BCA Filename", "Upload Date"])
+      df_bca["Upload Date"] = pd.to_datetime(df_bca["Upload Date"], format='mixed').dt.strftime("%B %d, %Y - %I:%M %p")
+      df_bca.set_index("File ID", inplace=True)
+      
+      if df_bca.empty:
+        st.info("No BCA files found. Upload files in the 'Original File' tab to see them listed here.")
+      else:
+        st.write("Select a row to download files:")
+        
+        gb = GridOptionsBuilder.from_dataframe(df_bca)
+        gb.configure_selection(selection_mode='single', use_checkbox=True)
+        gb.configure_grid_options(domLayout='autoHeight')
+        gb.configure_column("Full Name of User", flex=1)
+        gb.configure_column("Input Filename", headerTooltip="Click row checkbox to download", flex=1)
+        gb.configure_column("BCA Filename", headerTooltip="Click row checkbox to download", flex=1)
+        gb.configure_column("Upload Date", flex=1)
+        gb.configure_grid_options(onFirstDataRendered=auto_size)
+        
+        gridOptions = gb.build()
+
+        grid_response = AgGrid(
+            df_bca,
+            gridOptions=gridOptions,
+            theme='balham',
+            fit_columns_on_grid_load=True,
+            enable_enterprise_modules=False,
+            reload_data=True,
+            update_mode=GridUpdateMode.SELECTION_CHANGED,
+            allow_unsafe_jscode=True 
+        )
+        
+        selected_rows = grid_response['selected_rows']
+        
+        if selected_rows is not None and not selected_rows.empty:
+          selected_row = selected_rows.iloc[0]
+          input_filename = selected_row['Input Filename']
+          output_filename = selected_row['BCA Filename']
+          
+          col1, col2 = st.columns(2)
+          
+          with col1:
+            input_file_path = os.path.join(os.getcwd(), "Input Files", input_filename)
+            if os.path.exists(input_file_path):
+              with open(input_file_path, 'rb') as f:
+                st.download_button(
+                  label=f"📥 Download _**Input File**_",
+                  data=f.read(),
+                  file_name=input_filename,
+                  type="primary",
+                  use_container_width=True,
+                  mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                  key=f"download_input_{selected_row.name}"
+                )
+            else:
+              st.error(f"Input file not found: {input_filename}")
+          
+          with col2:
+            output_file_path = os.path.join(os.getcwd(), "BCA Files", output_filename)
+            if os.path.exists(output_file_path):
+              with open(output_file_path, 'rb') as f:
+                st.download_button(
+                  label=f"📥 Download _**BCA Output File**_",
+                  data=f.read(),
+                  file_name=output_filename,
+                  use_container_width=True,
+                  type="primary",
+                  mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                  key=f"download_output_{selected_row.name}"
+                )
+            else:
+              st.error(f"BCA file not found: {output_filename}")
+
+    if st.session_state['role'] == 'Admin':
+      with users_tab:
+        st.header("Users List")
+        st.write("Prototype: Admin can add, delete, edit users here.")
+        users = cursor.execute('''
+  SELECT fullName as "User Full Name", username as "Username", role as "Role" FROM users
+  ''')
+        user_df = pd.DataFrame(users, columns=["User Full Name", "Username", "Role"])
+        gb = GridOptionsBuilder.from_dataframe(user_df)
+        gb.configure_grid_options(domLayout='autoHeight')
+        gb.configure_column("User Full Name", flex=1)
+        gb.configure_column("Username", flex=1)
+        gb.configure_column("Role", flex=1)
+        gb.configure_grid_options(onFirstDataRendered=auto_size)
+        gridOptions = gb.build()
+        AgGrid(
+          user_df,
+          theme='balham',
+          gridOptions=gridOptions,
+          enable_enterprise_modules=False,
+          allow_unsafe_jscode=True,
+          fit_columns_on_grid_load=True,
+        )
 
   footer_col1, footer_col2, footer_col3 = st.columns([1, 2, 1])
   with footer_col2:
