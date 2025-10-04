@@ -61,7 +61,7 @@ def extract_parentheses_content(text):
 
 # STANDARD HELPER
 def getPerUnit(row, column, output):
-  return output.loc[row, column] / output.loc['QTY Gross', column]
+  return output.loc[row, column] / output.loc['QTY Gross', column] if output.loc['QTY Gross', column] != 0 else 0
 
 # STANDARD
 def QTY_CALCULATIONS(PRODUCT_LINES, output, DATA, ASSUMPTIONS, volume):
@@ -73,7 +73,8 @@ def QTY_CALCULATIONS(PRODUCT_LINES, output, DATA, ASSUMPTIONS, volume):
     try:
       output.loc['Defect %', f'{line} Cumulative'] = ASSUMPTIONS.loc[line, 'Defect %']
     except:
-      output.loc['Defect %', f'{line} Cumulative'] = ASSUMPTIONS.loc['-', 'Defect %']
+      st.error(f"**{line}** product line **NOT FOUND** in the Defaults and Assumptions Tab. Please Verify.", icon='❌')
+      return
 
   output.loc['QTY Gross', 'All Lines Cumulative'] = total_gross
   total_defect = 0
@@ -173,6 +174,7 @@ def NET_SALES_CALCULATIONS(output, DATA, ASSUMPTIONS, NET_SALES_METRICS, PRODUCT
 
 # STANDARD
 def MARGIN_CALCULATIONS(PRODUCT_LINES, MARGIN_METRICS, output, DATA, DEFAULTS, FORMAT):
+
   for metric in MARGIN_METRICS:
     output.loc[metric, 'All Lines Cumulative'] = 0
   for line in PRODUCT_LINES:
@@ -198,7 +200,7 @@ def MARGIN_CALCULATIONS(PRODUCT_LINES, MARGIN_METRICS, output, DATA, DEFAULTS, F
           scrap_return += output.loc[metric, f'{line} Per Unit']
     return_allowance = output.loc['Return Allowance', f'{line} Cumulative']
     per_unit_sales = output.loc['NET SALES', f'{line} Per Unit']
-    output.loc['Scrap Return Rate', f'{line} Cumulative'] = (1-DEFAULTS.get('Scrap Return Rate'))*(return_allowance/per_unit_sales)*scrap_return
+    output.loc['Scrap Return Rate', f'{line} Cumulative'] = (1-DEFAULTS.get('Scrap Return Rate'))*(return_allowance/per_unit_sales)*scrap_return if per_unit_sales != 0 else 0
     total_metric += output.loc['Scrap Return Rate', f'{line} Cumulative']
     output.loc['Scrap Return Rate', f'{line} Per Unit'] = getPerUnit('Scrap Return Rate', f'{line} Cumulative', output)
   output.loc['Scrap Return Rate', 'All Lines Cumulative'] = total_metric
@@ -244,6 +246,7 @@ def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, 
           output.loc[metric, 'All Lines Cumulative'] = FORMAT.loc[metric].iloc[0]
     else:
       output.loc[metric, 'All Lines Cumulative'] = 0
+
   output.loc['SG&A', 'All Lines Cumulative'] = 0
   for line in PRODUCT_LINES:
     for metric in SGA_METRICS:
@@ -267,10 +270,10 @@ def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, 
     if DEFAULTS.get('Scrap Return Rate') == 1:
       output.loc['Inspect Return', f'{line} Cumulative'] = 0
     else:
-      output.loc['Inspect Return', f'{line} Cumulative'] = (return_allowance/per_unit_sales)*per_unit_inspect*-1
+      output.loc['Inspect Return', f'{line} Cumulative'] = (return_allowance/per_unit_sales)*per_unit_inspect*-1 if per_unit_sales != 0 else 0
       output.loc['Inspect Return', 'All Lines Cumulative'] += output.loc['Inspect Return', f'{line} Cumulative']
 
-    output.loc['Return Allowance Put Away/Rebox', f'{line} Cumulative'] = (return_allowance/per_unit_sales)*per_unit_rebox*-1*(1-DEFAULTS.get('Scrap Return Rate', 0))
+    output.loc['Return Allowance Put Away/Rebox', f'{line} Cumulative'] = (return_allowance/per_unit_sales)*per_unit_rebox*-1*(1-DEFAULTS.get('Scrap Return Rate', 0)) if per_unit_sales != 0 else 0
     output.loc['Return Allowance Put Away/Rebox', 'All Lines Cumulative'] += output.loc['Return Allowance Put Away/Rebox', f'{line} Cumulative']
     
     SGA = 0
@@ -287,7 +290,6 @@ def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, 
   output.loc['SG&A', 'All Lines Per Unit'] = getPerUnit('SG&A', 'All Lines Cumulative', output)
 
   return output
-
 class ExcelExport:
   def table_format(x, metric):
     try:

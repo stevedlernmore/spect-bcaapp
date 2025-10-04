@@ -9,7 +9,7 @@ import sqlite3
 import uuid
 import hashlib
 import os
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
+from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 
 auto_size = JsCode("""
 function(params) {
@@ -51,6 +51,18 @@ conn = sqlite3.connect('database.db', check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT, fullName TEXT, password TEXT, role TEXT DEFAULT 'User')''')
 cursor.execute('''CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY, user_id TEXT, input_fileName TEXT, output_fileName TEXT, upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id))''')
+
+cursor.execute('''INSERT OR IGNORE INTO users (id, username, fullName, password, role) VALUES (?, ?, ?, ?, ?)''', 
+               ('17ff013e-d072-465b-a4a0-534b992f5319', 'LernmoreAdmin', 'Lernmore Admin', 
+                hashlib.scrypt("Analyzer".encode(), salt=b'secret_salt', n=16384, r=8, p=1).hex(), 'Admin'))
+
+cursor.execute('''INSERT OR IGNORE INTO users (id, username, fullName, password, role) VALUES (?, ?, ?, ?, ?)''', 
+               ('fafef3c4-3bd3-4221-be53-7d933c3aa8ee', 'BCA_User', 'Default BCA User', 
+                hashlib.scrypt("Analyzer".encode(), salt=b'secret_salt', n=16384, r=8, p=1).hex(), 'User'))
+
+conn.commit()
+
+conn.commit()
 
 volume = 0
 
@@ -465,7 +477,6 @@ st.markdown("""
 
 def password_entered():
   username = cursor.execute('''SELECT * FROM users WHERE username = ?''', (st.session_state["username"],)).fetchone()
-  print(username)
   if not username:
     st.toast("**Username does not exist**", icon="🚨")
   elif hashlib.scrypt(st.session_state["password"].encode(), salt=b'secret_salt', n=16384, r=8, p=1).hex() == username[3]:
@@ -582,7 +593,7 @@ if check_password():
                 st.session_state.user_assumptions_df = assumption_test.copy()
               st.session_state.user_summary_df = None
           except Exception as e:
-            st.error(f"❌ An error occurred: {str(e)}")
+            pass
         def formatter(name, value, defaults=False):
           if 'per unit' in name.lower() or 'cumulative' in name.lower() or 'big' in name.lower() or 'shipping' in name.lower() or 'return allowance' in name.lower() or 'pallets' in name.lower() or 'delivery' in name.lower() or 'inspect return' in name.lower() or 'rebox' in name.lower() or 'labor' in name.lower() or 'overhead' in name.lower() or 'special marketing' in name.lower():
             if defaults:
@@ -598,7 +609,7 @@ if check_password():
           return f'**{value}**'
         if st.session_state.input_defaults_df is not None or st.session_state.input_assumptions_df is not None:
           try:
-            header, date = input_file.name.split(".")[0].split("-")
+            header, date = "Unformatted File Name", "Unknown" 
           except:
             header, date = "Unformatted File Name", "Unknown"
           st.subheader(f'Business Case Analysis: {header}')
@@ -1068,8 +1079,6 @@ if check_password():
             theme='balham',
             fit_columns_on_grid_load=True,
             enable_enterprise_modules=False,
-            reload_data=True,
-            update_mode=GridUpdateMode.SELECTION_CHANGED,
             allow_unsafe_jscode=True 
         )
         
