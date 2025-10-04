@@ -62,7 +62,6 @@ cursor.execute('''INSERT OR IGNORE INTO users (id, username, fullName, password,
 
 conn.commit()
 
-conn.commit()
 
 volume = 0
 
@@ -476,10 +475,18 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def password_entered():
-  username = cursor.execute('''SELECT * FROM users WHERE username = ?''', (st.session_state["username"],)).fetchone()
+  username_input = st.session_state.get("username_input", "")
+  password_input = st.session_state.get("password_input", "")
+  
+  if not username_input or not password_input:
+    st.toast("**Please enter username and password**", icon="🚨")
+    return
+    
+  username = cursor.execute('''SELECT * FROM users WHERE username = ?''', (username_input,)).fetchone()
   if not username:
     st.toast("**Username does not exist**", icon="🚨")
-  elif hashlib.scrypt(st.session_state["password"].encode(), salt=b'secret_salt', n=16384, r=8, p=1).hex() == username[3]:
+    st.session_state["authenticated"] = False
+  elif hashlib.scrypt(password_input.encode(), salt=b'secret_salt', n=16384, r=8, p=1).hex() == username[3]:
     st.session_state["authenticated"] = True
     st.session_state["username"] = username[1]
     st.session_state["fullName"] = username[2]
@@ -495,8 +502,8 @@ def check_password():
       if "authenticated" not in st.session_state or st.session_state["authenticated"] is False:
         with st.container(border=True):
           st.image("logo-spectra-premium.jpg", width=300)
-          st.session_state["username"] = st.text_input("Username", key="username_input")
-          st.session_state["password"] = st.text_input("Password", type="password", key="password_input")
+          st.text_input("Username", key="username_input")
+          st.text_input("Password", type="password", key="password_input")
           with st.container(horizontal=True):
             st.button("Login", on_click=password_entered, key="login_button", use_container_width=True)
             st.button("Register", type="secondary", key="register_button", on_click=register, use_container_width=True)
