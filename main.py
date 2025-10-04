@@ -1,4 +1,4 @@
-from datetime import datetime
+from time import gmtime, strftime
 import streamlit as st
 import pandas as pd
 import standard
@@ -1054,7 +1054,7 @@ if check_password():
       JOIN users ON files.user_id = users.id''')
       
       df_bca = pd.DataFrame(records, columns=["File ID", "Full Name of User", "Input Filename", "BCA Filename", "Upload Date"])
-      df_bca["Upload Date"] = pd.to_datetime(df_bca["Upload Date"], format='mixed').dt.strftime("%B %d, %Y - %I:%M %p")
+      df_bca["Upload Date"] = pd.to_datetime(df_bca["Upload Date"], format='mixed').dt.strftime("%B %d, %Y - %I:%M %p UTC")
       df_bca.set_index("File ID", inplace=True)
       
       if df_bca.empty:
