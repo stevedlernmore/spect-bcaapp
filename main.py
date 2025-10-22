@@ -1,3 +1,4 @@
+from datetime import date
 from time import gmtime, strftime
 import streamlit as st
 import pandas as pd
@@ -514,20 +515,7 @@ def check_password():
         return True
 
 def getFileType(file_name):
-  if file_name.startswith('AMZ'):
-    return "Amazon"
-  elif file_name.startswith('PA'):
-    return "Parts Authority"
-  elif file_name.startswith('ORL'):
-    return "OReilly"
-  elif file_name.startswith('AZ'):
-    return "AZ"
-  elif file_name.startswith('UNITED'):
-    return "United"
-  elif file_name.startswith('VAST'):
-    return "VAST"
-  else:
-    return "Standard BCA"
+  return "Standard BCA"
 
 if check_password():
   if 'input_file' not in st.session_state:
@@ -577,12 +565,12 @@ if check_password():
 
     with input_tab:
       st.header("Upload Original BCA File")
-      st.write("Upload your original Business Case Analysis file. The system will automatically detect based on the filename.")
-      input_file = st.file_uploader(
-        "Choose your original Excel file", 
-        label_visibility="collapsed",
-        type=['xlsx', 'xls']
-      )
+      with st.expander("Upload your original Business Case Analysis file.", expanded=True):
+        input_file = st.file_uploader(
+          "Choose your original Excel file", 
+          label_visibility="collapsed",
+          type=['xlsx', 'xls']
+        )
       if input_file is not None:
         file_type = getFileType(input_file.name)
         if st.session_state.input_file != input_file:
@@ -615,12 +603,7 @@ if check_password():
             value = f"% {value*100:.3f}"
           return f'**{value}**'
         if st.session_state.input_defaults_df is not None or st.session_state.input_assumptions_df is not None:
-          try:
-            header, date = "Unformatted File Name", "Unknown" 
-          except:
-            header, date = "Unformatted File Name", "Unknown"
-          st.subheader(f'Business Case Analysis: {header}')
-          st.write(f"**Date:** {date}")
+          st.subheader(f'Business Case Analysis: _{st.session_state.input_file.name}_', anchor=False)
           st.write('You can adjust the following parameters to see their impact on the analysis:')
           qty_col1, qty_col2, qty_col3 = st.columns([1,2,1])
           with qty_col2:

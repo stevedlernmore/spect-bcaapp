@@ -236,9 +236,13 @@ def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, 
   special_metrics = ['Handling/Shipping', 'Fill Rate Fines', 'Inspect Return', 'Return Allowance Put Away/Rebox', 'Pallets / Wrapping']
   cases = list(set(SGA_METRICS) - set(special_metrics))
   for metric in SGA_METRICS:
+    print(f'{metric} -> {cases}')
     if metric in cases:
       if user_defaults_df:
-        output.loc[metric, 'All Lines Cumulative'] = user_defaults_df.get(metric)
+        if metric not in user_defaults_df:
+          output.loc[metric, 'All Lines Cumulative'] = 0
+        else:
+          output.loc[metric, 'All Lines Cumulative'] = user_defaults_df.get(metric)
       else:
         if np.isnan(FORMAT.loc[metric].iloc[0]):
           output.loc[metric, 'All Lines Cumulative'] = 0
@@ -246,7 +250,10 @@ def SGA_CALCULATIONS(PRODUCT_LINES, output, ASSUMPTIONS, DEFAULTS, SGA_METRICS, 
           output.loc[metric, 'All Lines Cumulative'] = FORMAT.loc[metric].iloc[0]
     else:
       output.loc[metric, 'All Lines Cumulative'] = 0
-
+  print(user_defaults_df)
+  print(FORMAT)
+  print(SGA_METRICS)
+  print(output)
   output.loc['SG&A', 'All Lines Cumulative'] = 0
   for line in PRODUCT_LINES:
     for metric in SGA_METRICS:
